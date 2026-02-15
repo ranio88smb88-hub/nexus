@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nexus - High End Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.cdnfonts.com/css/pp-neue-montreal" rel="stylesheet">
+    <style>
+      @font-face {
+        font-family: "PPSupplyMono";
+        src: url("https://assets.codepen.io/7558/PPSupplyMono-Regular.ttf") format("truetype");
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      :root {
+        --font-primary: "PP Neue Montreal", sans-serif;
+        --font-secondary: "PPSupplyMono", monospace;
+      }
+
+      body {
+        background-color: #1a1a1a;
+        color: #ffffff;
+        margin: 0;
+        overflow-x: hidden;
+        font-family: var(--font-secondary);
+      }
+
+      .font-primary { font-family: var(--font-primary); }
+      .font-secondary { font-family: var(--font-secondary); }
+
+      /* Grain effect */
+      .grain::after {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("https://img.freepik.com/premium-photo/white-dust-scratches-black-background_279525-2.jpg?w=640");
+        background-repeat: repeat;
+        opacity: 0.12;
+        mix-blend-mode: multiply;
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      /* Tweakpane customization */
+      .tp-dfwv {
+        font-family: var(--font-secondary) !important;
+        font-size: 10px !important;
+        background-color: rgba(0, 0, 0, 0.75) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        top: auto !important;
+        bottom: 100px !important;
+        right: 24px !important;
+        width: 280px !important;
+        max-height: calc(100vh - 180px) !important;
+        overflow-y: auto !important;
+        z-index: 100 !important;
+      }
+      
+      .tp-dfwv::-webkit-scrollbar {
+        width: 3px;
+      }
+      .tp-dfwv::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .tp-dfwv::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+      }
+
+      .tp-dfwv .tp-rotv_t {
+        color: rgba(255, 255, 255, 0.6) !important;
+        font-weight: bold !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+      }
+
+      /* Custom scrollbar for detail panel */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+      }
+
+      /* Custom animations for aura */
+      @keyframes slow-aura {
+        0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.4; }
+        50% { transform: scale(1.1) rotate(5deg); opacity: 0.7; }
+      }
+      .animate-aura {
+        animation: slow-aura 8s ease-in-out infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "three": "https://esm.sh/three@^0.182.0",
+    "tweakpane": "https://esm.sh/tweakpane@^4.0.5"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="grain">
+    <div id="root"></div>
+    <!-- Script entry point -->
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
