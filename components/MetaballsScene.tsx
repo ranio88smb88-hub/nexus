@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { Pane } from 'tweakpane';
@@ -7,9 +6,10 @@ import { Settings } from '../types';
 
 interface MetaballsSceneProps {
   onUpdateStats: (x: number, y: number, radius: number, merges: number, fps: number) => void;
+  onUpdateSettings: (settings: Settings) => void;
 }
 
-const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats }) => {
+const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdateSettings }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const settingsRef = useRef<Settings>({ ...INITIAL_SETTINGS });
@@ -19,7 +19,6 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats }) => {
     if (!containerRef.current || !canvasRef.current) return;
 
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
 
     const scene = new THREE.Scene();
@@ -232,54 +231,91 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats }) => {
     window.addEventListener('mousemove', handlePointerMove);
     window.addEventListener('touchmove', handleTouchMove);
 
-    // Tweakpane Integration matching the requested UI
-    const pane = new Pane({ title: "Metaball Controls", expanded: !isMobile });
+    // Tweakpane Integration - Expanded and Full
+    const pane = new Pane({ title: "Nexus Advanced Controls", expanded: !isMobile });
     
+    // --- PRESETS ---
     pane.addBinding(settingsRef.current, 'preset', {
       options: { Holographic: 'holographic', Minimal: 'minimal', Neon: 'neon' }
     }).on('change', (ev) => {
       const p = PRESETS[ev.value];
-      Object.assign(settingsRef.current, p);
-      Object.keys(p).forEach(k => {
-        if (shaderMaterial.uniforms[k]) shaderMaterial.uniforms[k].value = (p as any)[k];
-      });
-      pane.refresh();
+      if (p) {
+        Object.assign(settingsRef.current, p);
+        Object.keys(p).forEach(k => {
+          const uniformKey = 'u' + k.charAt(0).toUpperCase() + k.slice(1);
+          if (shaderMaterial.uniforms[uniformKey]) {
+             shaderMaterial.uniforms[uniformKey].value = (p as any)[k];
+          }
+        });
+        onUpdateSettings({ ...settingsRef.current });
+        pane.refresh();
+      }
     });
 
-    const mFolder = pane.addFolder({ title: "Metaballs" });
-    mFolder.addBinding(settingsRef.current, 'fixedTopLeftRadius', { label: 'Top Left Size', min: 0.1, max: 1.5 }).on('change', v => shaderMaterial.uniforms.uFixedTopLeftRadius.value = v.value);
-    mFolder.addBinding(settingsRef.current, 'fixedBottomRightRadius', { label: 'Bottom Right Size', min: 0.1, max: 1.5 }).on('change', v => shaderMaterial.uniforms.uFixedBottomRightRadius.value = v.value);
-    mFolder.addBinding(settingsRef.current, 'smallTopLeftRadius', { label: 'Small Top Left', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallTopLeftRadius.value = v.value);
-    mFolder.addBinding(settingsRef.current, 'smallBottomRightRadius', { label: 'Small Bottom Right', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallBottomRightRadius.value = v.value);
-    mFolder.addBinding(settingsRef.current, 'sphereCount', { label: 'Moving Count', min: 2, max: 10, step: 1 }).on('change', v => shaderMaterial.uniforms.uSphereCount.value = v.value);
-    mFolder.addBinding(settingsRef.current, 'smoothness', { label: 'Blend Smoothness', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmoothness.value = v.value);
+    // --- MORPHOLOGY ---
+    const geoFolder = pane.addFolder({ title: "Morphology", expanded: true });
+    geoFolder.addBinding(settingsRef.current, 'sphereCount', { label: 'Quantity', min: 2, max: 10, step: 1 }).on('change', v => shaderMaterial.uniforms.uSphereCount.value = v.value);
+    geoFolder.addBinding(settingsRef.current, 'smoothness', { label: 'Viscosity', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmoothness.value = v.value);
+    geoFolder.addBinding(settingsRef.current, 'fixedTopLeftRadius', { label: 'Corner TL', min: 0.1, max: 1.5 }).on('change', v => shaderMaterial.uniforms.uFixedTopLeftRadius.value = v.value);
+    geoFolder.addBinding(settingsRef.current, 'fixedBottomRightRadius', { label: 'Corner BR', min: 0.1, max: 1.5 }).on('change', v => shaderMaterial.uniforms.uFixedBottomRightRadius.value = v.value);
+    geoFolder.addBinding(settingsRef.current, 'smallTopLeftRadius', { label: 'Aux TL', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallTopLeftRadius.value = v.value);
+    geoFolder.addBinding(settingsRef.current, 'smallBottomRightRadius', { label: 'Aux BR', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallBottomRightRadius.value = v.value);
 
-    const iFolder = pane.addFolder({ title: "Mouse Interaction" });
-    iFolder.addBinding(settingsRef.current, 'mouseProximityEffect');
-    iFolder.addBinding(settingsRef.current, 'minMovementScale', { min: 0.1, max: 1.0 });
-    iFolder.addBinding(settingsRef.current, 'maxMovementScale', { min: 0.5, max: 2.0 });
-    iFolder.addBinding(settingsRef.current, 'mouseSmoothness', { label: 'Mouse Smoothness', min: 0.01, max: 0.5 });
+    // --- PHYSICS & ANIMATION ---
+    const physFolder = pane.addFolder({ title: "Physics", expanded: false });
+    physFolder.addBinding(settingsRef.current, 'animationSpeed', { label: 'Evolution Speed', min: 0.1, max: 2.0 }).on('change', v => shaderMaterial.uniforms.uAnimationSpeed.value = v.value);
+    physFolder.addBinding(settingsRef.current, 'movementScale', { label: 'Orbit Amplitude', min: 0.1, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uMovementScale.value = v.value);
+    physFolder.addBinding(settingsRef.current, 'mouseSmoothness', { label: 'Cursor Inertia', min: 0.01, max: 0.5 });
+    physFolder.addBinding(settingsRef.current, 'mouseProximityEffect', { label: 'Proximity Scaling' });
+    physFolder.addBinding(settingsRef.current, 'mergeDistance', { label: 'Snap Threshold', min: 0.5, max: 3.0 });
 
-    const cFolder = pane.addFolder({ title: "Cursor" });
-    cFolder.addBinding(settingsRef.current, 'cursorRadiusMin', { label: 'Min Radius', min: 0.01, max: 0.2 });
-    cFolder.addBinding(settingsRef.current, 'cursorRadiusMax', { label: 'Max Radius', min: 0.1, max: 0.5 });
+    // --- LIGHTING ---
+    const lightFolder = pane.addFolder({ title: "Lighting", expanded: false });
+    lightFolder.addBinding(settingsRef.current, 'ambientIntensity', { label: 'Ambient', min: 0, max: 1 }).on('change', v => shaderMaterial.uniforms.uAmbientIntensity.value = v.value);
+    lightFolder.addBinding(settingsRef.current, 'diffuseIntensity', { label: 'Diffuse', min: 0, max: 5 }).on('change', v => shaderMaterial.uniforms.uDiffuseIntensity.value = v.value);
+    lightFolder.addBinding(settingsRef.current, 'specularIntensity', { label: 'Specular', min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uSpecularIntensity.value = v.value);
+    lightFolder.addBinding(settingsRef.current, 'specularPower', { label: 'Hardness', min: 1, max: 64 }).on('change', v => shaderMaterial.uniforms.uSpecularPower.value = v.value);
+    lightFolder.addBinding(settingsRef.current, 'fresnelPower', { label: 'Edge Fresnel', min: 0.1, max: 10 }).on('change', v => shaderMaterial.uniforms.uFresnelPower.value = v.value);
+    lightFolder.addBinding(settingsRef.current, 'lightPosition', { label: 'Light Vector', x: { min: -2, max: 2 }, y: { min: -2, max: 2 }, z: { min: 0.1, max: 3 } }).on('change', v => shaderMaterial.uniforms.uLightPosition.value.copy(v.value));
 
-    const aFolder = pane.addFolder({ title: "Animation" });
-    aFolder.addBinding(settingsRef.current, 'animationSpeed', { min: 0.1, max: 2.0 }).on('change', v => shaderMaterial.uniforms.uAnimationSpeed.value = v.value);
-    aFolder.addBinding(settingsRef.current, 'movementScale', { min: 0.1, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uMovementScale.value = v.value);
+    // --- COLORS & FINISHING ---
+    const colorFolder = pane.addFolder({ title: "Chromatics", expanded: false });
+    colorFolder.addBinding(settingsRef.current, 'backgroundColor', { label: 'Environment', view: 'color' }).on('change', v => shaderMaterial.uniforms.uBackgroundColor.value.copy(v.value));
+    colorFolder.addBinding(settingsRef.current, 'sphereColor', { label: 'Metaball Core', view: 'color' }).on('change', v => shaderMaterial.uniforms.uSphereColor.value.copy(v.value));
+    colorFolder.addBinding(settingsRef.current, 'lightColor', { label: 'Primary Light', view: 'color' }).on('change', v => shaderMaterial.uniforms.uLightColor.value.copy(v.value));
+    colorFolder.addBinding(settingsRef.current, 'contrast', { label: 'Contrast', min: 0.5, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uContrast.value = v.value);
+    colorFolder.addBinding(settingsRef.current, 'fogDensity', { label: 'Atmosphere', min: 0, max: 0.5 }).on('change', v => shaderMaterial.uniforms.uFogDensity.value = v.value);
 
-    const lFolder = pane.addFolder({ title: "Lighting" });
-    lFolder.addBinding(settingsRef.current, 'ambientIntensity', { min: 0, max: 1 }).on('change', v => shaderMaterial.uniforms.uAmbientIntensity.value = v.value);
-    lFolder.addBinding(settingsRef.current, 'diffuseIntensity', { min: 0, max: 3 }).on('change', v => shaderMaterial.uniforms.uDiffuseIntensity.value = v.value);
-    lFolder.addBinding(settingsRef.current, 'specularIntensity', { min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uSpecularIntensity.value = v.value);
-    lFolder.addBinding(settingsRef.current, 'specularPower', { min: 1, max: 50, step: 1 }).on('change', v => shaderMaterial.uniforms.uSpecularPower.value = v.value);
-    lFolder.addBinding(settingsRef.current, 'fresnelPower', { min: 0.1, max: 10 }).on('change', v => shaderMaterial.uniforms.uFresnelPower.value = v.value);
-    lFolder.addBinding(settingsRef.current, 'contrast', { min: 0.5, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uContrast.value = v.value);
+    // --- CURSOR CUSTOMIZATION ---
+    const cursorFolder = pane.addFolder({ title: "Nexus Cursor", expanded: false });
+    cursorFolder.addBinding(settingsRef.current, 'cursorGlowIntensity', { label: 'Glow Boost', min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uCursorGlowIntensity.value = v.value);
+    cursorFolder.addBinding(settingsRef.current, 'cursorGlowRadius', { label: 'Glow Falloff', min: 0.1, max: 5.0 }).on('change', v => shaderMaterial.uniforms.uCursorGlowRadius.value = v.value);
+    cursorFolder.addBinding(settingsRef.current, 'cursorGlowColor', { label: 'Glow Hue', view: 'color' }).on('change', v => shaderMaterial.uniforms.uCursorGlowColor.value.copy(v.value));
+    cursorFolder.addBinding(settingsRef.current, 'cursorRadiusMin', { label: 'Scale Range Min', min: 0.01, max: 0.5 });
+    cursorFolder.addBinding(settingsRef.current, 'cursorRadiusMax', { label: 'Scale Range Max', min: 0.1, max: 1.0 });
 
-    const gFolder = pane.addFolder({ title: "Cursor Glow" });
-    gFolder.addBinding(settingsRef.current, 'cursorGlowIntensity', { min: 0, max: 5 }).on('change', v => shaderMaterial.uniforms.uCursorGlowIntensity.value = v.value);
-    gFolder.addBinding(settingsRef.current, 'cursorGlowRadius', { min: 0.1, max: 5.0 }).on('change', v => shaderMaterial.uniforms.uCursorGlowRadius.value = v.value);
-    gFolder.addBinding(settingsRef.current, 'fogDensity', { min: 0, max: 0.5 }).on('change', v => shaderMaterial.uniforms.uFogDensity.value = v.value);
+    // --- SLIDER CONTENT ---
+    const sFolder = pane.addFolder({ title: "Slider Settings", expanded: false });
+    
+    const slide1 = sFolder.addFolder({ title: "Slide 1", expanded: false });
+    slide1.addBinding(settingsRef.current, 'slide1Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+    slide1.addBinding(settingsRef.current, 'slide1Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+
+    const slide2 = sFolder.addFolder({ title: "Slide 2", expanded: false });
+    slide2.addBinding(settingsRef.current, 'slide2Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+    slide2.addBinding(settingsRef.current, 'slide2Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+
+    const slide3 = sFolder.addFolder({ title: "Slide 3", expanded: false });
+    slide3.addBinding(settingsRef.current, 'slide3Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+    slide3.addBinding(settingsRef.current, 'slide3Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+
+    const slide4 = sFolder.addFolder({ title: "Slide 4", expanded: false });
+    slide4.addBinding(settingsRef.current, 'slide4Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+    slide4.addBinding(settingsRef.current, 'slide4Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+
+    const slide5 = sFolder.addFolder({ title: "Slide 5", expanded: false });
+    slide5.addBinding(settingsRef.current, 'slide5Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+    slide5.addBinding(settingsRef.current, 'slide5Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
 
     let lastTime = performance.now();
     let frameCount = 0;
@@ -301,7 +337,6 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats }) => {
       const wx = (currentMouse.x * 2.0 - 1.0) * aspect * 2.0;
       const wy = (currentMouse.y * 2.0 - 1.0) * 2.0;
 
-      // Dynamic Proximity Scaling
       let currentRadius = settingsRef.current.cursorRadiusMin;
       if (settingsRef.current.mouseProximityEffect) {
         const distFromCenter = Math.sqrt(wx * wx + wy * wy);
@@ -310,7 +345,6 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats }) => {
       }
       shaderMaterial.uniforms.uCursorRadius.value = currentRadius;
 
-      // Interaction stats calculation
       let merges = 0;
       const fixedPoints = [[0.08, 0.92], [0.25, 0.72], [0.92, 0.08], [0.72, 0.25]];
       fixedPoints.forEach(([nx, ny]) => {
