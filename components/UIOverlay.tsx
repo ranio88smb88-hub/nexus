@@ -27,7 +27,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   const trackRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch Tasks from Supabase
   const fetchTasks = async () => {
     if (!supabase) return;
     const { data, error } = await supabase
@@ -68,14 +67,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
   const deleteTask = async (id: number) => {
     if (!supabase) return;
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', id);
-    
-    if (!error) {
-      setTasks(tasks.filter(t => t.id !== id));
-    }
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (!error) setTasks(tasks.filter(t => t.id !== id));
   };
 
   const items = sliderData.length > 0 ? sliderData : [
@@ -94,10 +87,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     { label: 'izin keluar' }
   ];
 
-  const isMobile = useCallback(() => {
-    return window.matchMedia("(max-width:767px)").matches;
-  }, []);
-
   const centerCard = useCallback((index: number) => {
     if (!trackRef.current || !containerRef.current) return;
     const cards = Array.from(trackRef.current.children) as HTMLElement[];
@@ -105,7 +94,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     if (!card) return;
 
     const wrap = containerRef.current;
-    const mobile = isMobile();
+    const mobile = window.innerWidth < 768;
     const axis = mobile ? "top" : "left";
     const size = mobile ? wrap.clientHeight : wrap.clientWidth;
     const start = mobile ? card.offsetTop : card.offsetLeft;
@@ -115,7 +104,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
       [axis]: start - (mobile ? (size / 2 - cardSize / 2) : 0),
       behavior: "smooth"
     });
-  }, [isMobile]);
+  }, []);
 
   const activate = (index: number) => {
     if (index === activeIdx) return;
@@ -123,19 +112,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     centerCard(index);
   };
 
-  useEffect(() => {
-    const handleResize = () => centerCard(activeIdx);
-    window.addEventListener('resize', handleResize);
-    const timeout = setTimeout(() => centerCard(activeIdx), 100);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(timeout);
-    };
-  }, [activeIdx, centerCard]);
-
   const formatDateTime = (iso: string) => {
     const d = new Date(iso);
-    const dateStr = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: '2-digit', month: 'short' };
+    const dateStr = d.toLocaleDateString('id-ID', options);
     const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     return `${dateStr} | ${timeStr}`;
   };
@@ -146,11 +126,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         <ul className="nav-links">
           {navs.map((item, i) => (
             <li key={i}>
-              <a onClick={() => {
-                if (item.label.toLowerCase().includes('tugas')) {
-                  setShowTasks(true);
-                }
-              }}>
+              <a onClick={() => item.label.toLowerCase().includes('tugas') ? setShowTasks(true) : null}>
                 {item.label}
               </a>
             </li>
@@ -158,45 +134,39 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         </ul>
       </nav>
 
-      {/* Task Modal Container */}
+      {/* Modern Task Modal */}
       <div className={`task-modal ${showTasks ? 'open' : ''}`} onClick={() => setShowTasks(false)}>
         <div className="task-container font-primary pointer-events-auto" onClick={e => e.stopPropagation()}>
-          <div className="flex justify-between items-start mb-8">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight mb-2 uppercase text-white">Tugas Today</h2>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#ff6b35] animate-pulse"></span>
-                <p className="opacity-40 text-[10px] uppercase tracking-widest font-secondary">Live Productivity Sync</p>
-              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-white uppercase">Management Tugas</h2>
+              <p className="opacity-40 text-[9px] uppercase tracking-widest font-secondary mt-1">Rekap Aktivitas Harian Nexus</p>
             </div>
-            <button onClick={() => setShowTasks(false)} className="bg-white/5 hover:bg-white/10 p-2 rounded-full transition-colors">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <button onClick={() => setShowTasks(false)} className="hover:rotate-90 transition-transform duration-300">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
-          <div className="relative group mb-6">
+          <div className="relative mb-6">
             <input 
               type="text" 
-              placeholder="Apa tugas harian Anda hari ini?"
+              placeholder="Input tugas baru..."
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addTask()}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 pr-14 focus:outline-none focus:border-[#ff6b35]/50 focus:bg-white/[0.08] transition-all font-primary text-white placeholder:text-white/20"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 focus:outline-none focus:border-[#ff6b35] transition-all text-white"
             />
             <button 
               onClick={addTask}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6b35] text-white p-2.5 rounded-lg hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#ff6b35]/20"
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#ff6b35] p-2 rounded-lg hover:scale-110 active:scale-90 transition-all"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
             </button>
           </div>
 
           <div className="task-list flex-1">
             {tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 opacity-20 text-center">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="mb-4"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                <p className="uppercase text-[10px] tracking-[0.3em]">Belum ada riwayat tugas</p>
-              </div>
+              <div className="text-center py-20 opacity-20 uppercase text-[10px] tracking-widest">Belum ada history tugas</div>
             ) : (
               tasks.map(task => (
                 <div key={task.id} className={`task-item group ${task.is_completed ? 'completed' : ''}`}>
@@ -206,17 +176,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                   >
                     {task.is_completed && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
                   </div>
-                  <div className="flex-1 min-w-0" onClick={() => toggleTask(task)}>
-                    <div className="task-text text-[15px] font-medium mb-1 truncate text-white/90">{task.title}</div>
-                    <div className="text-[9px] opacity-30 uppercase tracking-tighter font-secondary flex items-center gap-1.5">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <div className="flex-1" onClick={() => toggleTask(task)}>
+                    <div className="task-text text-sm font-medium text-white/90 mb-1">{task.title}</div>
+                    <div className="text-[9px] opacity-40 uppercase tracking-tighter font-secondary">
                       {formatDateTime(task.created_at)}
                     </div>
                   </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                    className="opacity-0 group-hover:opacity-40 hover:!opacity-100 p-2 transition-all"
-                  >
+                  <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white/5 rounded-lg transition-all">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
@@ -235,7 +201,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                 className="project-card"
                 data-active={idx === activeIdx}
                 onClick={() => activate(idx)}
-                onMouseEnter={() => !isMobile() && activate(idx)}
               >
                 <img className="project-card__bg" src={item.bg} alt="" />
                 <div className="project-card__content">
@@ -255,16 +220,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
         <div className="dots">
           {items.map((_, idx) => (
-            <span 
-              key={idx} 
-              className={`dot ${idx === activeIdx ? 'active' : ''}`}
-              onClick={() => activate(idx)}
-            />
+            <span key={idx} className={`dot ${idx === activeIdx ? 'active' : ''}`} onClick={() => activate(idx)} />
           ))}
         </div>
       </section>
 
-      <div className="fixed bottom-8 right-8 flex flex-col items-end gap-1 opacity-20 hover:opacity-100 transition-opacity">
+      <div className="fixed bottom-8 right-8 flex flex-col items-end gap-1 opacity-20">
         <div className="bg-white/5 border border-white/10 px-4 py-1.5 rounded-full font-mono text-[9px] uppercase tracking-[0.3em] text-white/60">
           FPS: {stats.fps}
         </div>
