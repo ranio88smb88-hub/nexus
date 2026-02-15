@@ -35,4 +35,19 @@ export interface Settings extends Preset {
   mouseProximityEffect: boolean;
   minMovementScale: number;
   maxMovementScale: number;
+  // UI Customization
+  uiTheme: 'darkness' | 'neon' | 'sunset' | 'frost';
+  sliderImage: string;
+  // Dynamic Slider Content
+  sliderHeading: string;
+  slide1Title: string;
+  slide1Bg: string;
+  slide2Title: string;
+  slide2Bg: string;
+  slide3Title: string;
+  slide3Bg: string;
+  slide4Title: string;
+  slide4Bg: string;
+  slide5Title: string;
+  slide5Bg: string;
 }

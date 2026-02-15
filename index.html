@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nexus - High End Interface</title>
+    <title>Nexus - Productivity Slider</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.cdnfonts.com/css/pp-neue-montreal" rel="stylesheet">
     <style>
@@ -19,10 +18,15 @@
       :root {
         --font-primary: "PP Neue Montreal", sans-serif;
         --font-secondary: "PPSupplyMono", monospace;
+        --gap: 1.25rem;
+        --speed: 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        --closed: 5rem;
+        --open: 30rem;
+        --accent: #ff6b35;
       }
 
       body {
-        background-color: #1a1a1a;
+        background-color: #07090d;
         color: #ffffff;
         margin: 0;
         overflow-x: hidden;
@@ -32,20 +36,38 @@
       .font-primary { font-family: var(--font-primary); }
       .font-secondary { font-family: var(--font-secondary); }
 
-      /* Grain effect */
-      .grain::after {
-        content: "";
+      /* Navbar Styles - Left Aligned */
+      .nexus-nav {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        height: 100%;
-        background-image: url("https://img.freepik.com/premium-photo/white-dust-scratches-black-background_279525-2.jpg?w=640");
-        background-repeat: repeat;
-        opacity: 0.12;
-        mix-blend-mode: multiply;
-        pointer-events: none;
-        z-index: 50;
+        padding: 3rem 4rem;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        z-index: 1000;
+        pointer-events: auto;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 3rem;
+        list-style: none;
+      }
+
+      .nav-links a {
+        font-family: var(--font-primary);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        color: rgba(255, 255, 255, 0.5);
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+
+      .nav-links a:hover {
+        color: #fff;
       }
 
       /* Tweakpane customization */
@@ -55,11 +77,10 @@
         background-color: rgba(0, 0, 0, 0.75) !important;
         backdrop-filter: blur(20px) !important;
         border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        top: auto !important;
-        bottom: 100px !important;
+        top: 24px !important;
         right: 24px !important;
         width: 280px !important;
-        max-height: calc(100vh - 180px) !important;
+        max-height: calc(100vh - 80px) !important;
         overflow-y: auto !important;
         z-index: 100 !important;
       }
@@ -75,32 +96,248 @@
         border-radius: 10px;
       }
 
-      .tp-dfwv .tp-rotv_t {
-        color: rgba(255, 255, 255, 0.6) !important;
-        font-weight: bold !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.1em !important;
+      /* Slider Sections */
+      .slider-section {
+        width: 100%;
+        max-width: 1400px;
+        margin: auto;
+        padding: 0 4rem;
+        z-index: 10;
+        position: relative;
+        margin-top: 6rem;
       }
 
-      /* Custom scrollbar for detail panel */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
+      .slider-container {
+        overflow: hidden;
+        padding-bottom: 40px;
       }
-      .custom-scrollbar::-webkit-scrollbar-track {
+
+      .slider-track {
+        display: flex;
+        gap: var(--gap);
+        align-items: flex-start;
+        justify-content: flex-start;
+        scroll-behavior: smooth;
+        padding-bottom: 20px;
+      }
+
+      /* High Transparency & Glassmorphism */
+      .project-card {
+        position: relative;
+        flex: 0 0 var(--closed);
+        height: 28rem;
+        border-radius: 1.5rem;
+        overflow: hidden;
+        cursor: pointer;
+        transition: flex-basis var(--speed), transform var(--speed), box-shadow var(--speed), border-color 0.3s, background 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        /* 80% transparent means 20% opacity */
         background: rgba(255, 255, 255, 0.02);
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
       }
 
-      /* Custom animations for aura */
-      @keyframes slow-aura {
-        0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.4; }
-        50% { transform: scale(1.1) rotate(5deg); opacity: 0.7; }
+      .project-card[data-active="true"] {
+        flex-basis: var(--open);
+        transform: translateY(-8px);
+        box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
       }
-      .animate-aura {
-        animation: slow-aura 8s ease-in-out infinite;
+
+      .project-card__bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        /* Lower base opacity for maximum transparency */
+        opacity: 0.15; 
+        filter: grayscale(100%) brightness(0.7);
+        transition: filter 0.5s, transform var(--speed), opacity 0.5s;
+        z-index: 0;
+      }
+
+      .project-card:hover .project-card__bg {
+        opacity: 0.25;
+        filter: grayscale(50%) brightness(0.8);
+      }
+
+      .project-card[data-active="true"] .project-card__bg {
+        opacity: 0.4;
+        filter: grayscale(0%) brightness(1);
+      }
+
+      .project-card__content {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 0.7rem;
+        /* Minimalist gradient to preserve transparency */
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.2) 100%);
+        z-index: 2;
+        transition: all var(--speed);
+      }
+
+      .project-card__title {
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.35rem;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-family: var(--font-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition: all var(--speed);
+        text-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      .project-card[data-active="true"] .project-card__content {
+        flex-direction: row;
+        align-items: center;
+        padding: 2.5rem;
+        gap: 2rem;
+        justify-content: flex-start;
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.3) 100%);
+      }
+
+      .project-card[data-active="true"] .project-card__title {
+        writing-mode: horizontal-tb;
+        transform: none;
+        font-size: 2.8rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .project-card__info {
+        display: none;
+        opacity: 0;
+        transform: translateX(20px);
+        transition: all 0.5s var(--speed);
+      }
+
+      .project-card[data-active="true"] .project-card__info {
+        display: block;
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      .project-card__desc {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1rem;
+        line-height: 1.5;
+        max-width: 18rem;
+        margin-bottom: 2rem;
+        font-family: var(--font-primary);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .project-card__btn {
+        padding: 0.8rem 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 9999px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        cursor: pointer;
+        transition: 0.3s;
+        backdrop-filter: blur(5px);
+      }
+
+      .project-card__btn:hover {
+        background: #fff;
+        color: #000;
+        border-color: #fff;
+        transform: translateY(-2px);
+      }
+
+      .dots {
+        display: flex;
+        gap: 0.8rem;
+        justify-content: flex-start;
+        padding-top: 20px;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      .dot.active {
+        background: var(--accent);
+        transform: scale(1.5);
+        box-shadow: 0 0 15px var(--accent);
+      }
+
+      @media (max-width: 767px) {
+        :root {
+          --closed: 100%;
+          --open: 100%;
+        }
+        
+        .nexus-nav {
+          padding: 1.5rem;
+          justify-content: center;
+        }
+
+        .nav-links {
+          gap: 1.5rem;
+        }
+
+        .slider-section {
+          padding: 0 1.5rem;
+          padding-top: 100px;
+          margin-top: 2rem;
+        }
+
+        .slider-track {
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .project-card {
+          height: auto;
+          min-height: 120px;
+          flex: 0 0 auto;
+        }
+
+        .project-card[data-active="true"] {
+          min-height: 420px;
+        }
+
+        .project-card__title {
+          writing-mode: horizontal-tb;
+          transform: none;
+          font-size: 1.2rem;
+        }
+
+        .project-card[data-active="true"] .project-card__content {
+          flex-direction: column;
+          align-items: flex-start;
+          padding: 2rem;
+        }
+
+        .project-card[data-active="true"] .project-card__title {
+          font-size: 2rem;
+        }
+
+        .dots { display: none; }
+      }
+
+      canvas {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
       }
     </style>
   <script type="importmap">
@@ -116,9 +353,8 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="grain">
+  <body>
     <div id="root"></div>
-    <!-- Script entry point -->
     <script type="module" src="./index.tsx"></script>
   <script type="module" src="/index.tsx"></script>
 </body>
