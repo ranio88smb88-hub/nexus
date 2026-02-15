@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -36,7 +37,6 @@
       .font-primary { font-family: var(--font-primary); }
       .font-secondary { font-family: var(--font-secondary); }
 
-      /* Navbar Styles - Left Aligned */
       .nexus-nav {
         position: fixed;
         top: 0;
@@ -64,39 +64,13 @@
         color: rgba(255, 255, 255, 0.5);
         text-decoration: none;
         transition: color 0.3s ease;
+        cursor: pointer;
       }
 
       .nav-links a:hover {
         color: #fff;
       }
 
-      /* Tweakpane customization */
-      .tp-dfwv {
-        font-family: var(--font-secondary) !important;
-        font-size: 10px !important;
-        background-color: rgba(0, 0, 0, 0.75) !important;
-        backdrop-filter: blur(20px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        top: 24px !important;
-        right: 24px !important;
-        width: 280px !important;
-        max-height: calc(100vh - 80px) !important;
-        overflow-y: auto !important;
-        z-index: 100 !important;
-      }
-      
-      .tp-dfwv::-webkit-scrollbar {
-        width: 3px;
-      }
-      .tp-dfwv::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .tp-dfwv::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-      }
-
-      /* Slider Sections */
       .slider-section {
         width: 100%;
         max-width: 1400px;
@@ -121,7 +95,6 @@
         padding-bottom: 20px;
       }
 
-      /* High Transparency & Glassmorphism */
       .project-card {
         position: relative;
         flex: 0 0 var(--closed);
@@ -131,7 +104,6 @@
         cursor: pointer;
         transition: flex-basis var(--speed), transform var(--speed), box-shadow var(--speed), border-color 0.3s, background 0.3s;
         border: 1px solid rgba(255, 255, 255, 0.05);
-        /* 80% transparent means 20% opacity */
         background: rgba(255, 255, 255, 0.02);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
@@ -151,7 +123,6 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        /* Lower base opacity for maximum transparency */
         opacity: 0.15; 
         filter: grayscale(100%) brightness(0.7);
         transition: filter 0.5s, transform var(--speed), opacity 0.5s;
@@ -176,7 +147,6 @@
         justify-content: center;
         align-items: center;
         gap: 0.7rem;
-        /* Minimalist gradient to preserve transparency */
         background: linear-gradient(180deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.2) 100%);
         z-index: 2;
         transition: all var(--speed);
@@ -278,67 +248,112 @@
         box-shadow: 0 0 15px var(--accent);
       }
 
+      /* Task Modal Styles */
+      .task-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(7, 9, 13, 0.85);
+        backdrop-filter: blur(20px);
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.4s ease;
+      }
+
+      .task-modal.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .task-container {
+        width: 100%;
+        max-width: 600px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 2rem;
+        padding: 3rem;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        transform: translateY(20px);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .task-modal.open .task-container {
+        transform: translateY(0);
+      }
+
+      .task-list {
+        overflow-y: auto;
+        margin-top: 2rem;
+        padding-right: 1rem;
+      }
+
+      .task-list::-webkit-scrollbar { width: 4px; }
+      .task-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+
+      .task-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 1rem;
+        margin-bottom: 0.75rem;
+        transition: 0.3s;
+      }
+
+      .task-item.completed {
+        opacity: 0.6;
+        background: rgba(255, 255, 255, 0.01);
+      }
+
+      .task-item.completed .task-text {
+        text-decoration: line-through;
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .custom-checkbox {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.3s;
+      }
+
+      .custom-checkbox.checked {
+        background: var(--accent);
+        border-color: var(--accent);
+        box-shadow: 0 0 10px rgba(255, 107, 53, 0.4);
+      }
+
       @media (max-width: 767px) {
         :root {
           --closed: 100%;
           --open: 100%;
         }
-        
-        .nexus-nav {
-          padding: 1.5rem;
-          justify-content: center;
-        }
-
-        .nav-links {
-          gap: 1.5rem;
-        }
-
-        .slider-section {
-          padding: 0 1.5rem;
-          padding-top: 100px;
-          margin-top: 2rem;
-        }
-
-        .slider-track {
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .project-card {
-          height: auto;
-          min-height: 120px;
-          flex: 0 0 auto;
-        }
-
-        .project-card[data-active="true"] {
-          min-height: 420px;
-        }
-
-        .project-card__title {
-          writing-mode: horizontal-tb;
-          transform: none;
-          font-size: 1.2rem;
-        }
-
-        .project-card[data-active="true"] .project-card__content {
-          flex-direction: column;
-          align-items: flex-start;
-          padding: 2rem;
-        }
-
-        .project-card[data-active="true"] .project-card__title {
-          font-size: 2rem;
-        }
-
+        .nexus-nav { padding: 1.5rem; justify-content: center; }
+        .nav-links { gap: 1.5rem; }
+        .slider-section { padding: 0 1.5rem; padding-top: 100px; margin-top: 2rem; }
+        .slider-track { flex-direction: column; gap: 1rem; }
+        .project-card { height: auto; min-height: 120px; flex: 0 0 auto; }
+        .project-card[data-active="true"] { min-height: 420px; }
+        .project-card__title { writing-mode: horizontal-tb; transform: none; font-size: 1.2rem; }
+        .project-card[data-active="true"] .project-card__content { flex-direction: column; align-items: flex-start; padding: 2rem; }
+        .project-card[data-active="true"] .project-card__title { font-size: 2rem; }
         .dots { display: none; }
+        .task-container { width: 90%; padding: 1.5rem; }
       }
 
-      canvas {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 0;
-      }
+      canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
     </style>
   <script type="importmap">
 {
@@ -347,15 +362,14 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "react/": "https://esm.sh/react@^19.2.4/",
     "three": "https://esm.sh/three@^0.182.0",
-    "tweakpane": "https://esm.sh/tweakpane@^4.0.5"
+    "tweakpane": "https://esm.sh/tweakpane@^4.0.5",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
-  <script type="module" src="/index.tsx"></script>
-</body>
+  </body>
 </html>
