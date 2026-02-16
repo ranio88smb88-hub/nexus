@@ -10,16 +10,16 @@ interface MetaballsSceneProps {
 }
 
 const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdateSettings }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tpRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<Settings>({ ...INITIAL_SETTINGS });
-  const statsRef = useRef({ x: 0, y: 0, radius: 0.1, merges: 0, fps: 0 });
+  const statsRef = useRef({ fps: 0 });
 
   useEffect(() => {
-    if (!containerRef.current || !canvasRef.current) return;
+    if (!canvasRef.current || !tpRef.current) return;
 
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
@@ -34,14 +34,12 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
 
     renderer.setPixelRatio(dpr);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0);
 
     const shaderMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
         uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
         uActualResolution: { value: new THREE.Vector2(window.innerWidth * dpr, window.innerHeight * dpr) },
-        uPixelRatio: { value: dpr },
         uCursorSphere: { value: new THREE.Vector3(0, 0, 0) },
         uCursorRadius: { value: settingsRef.current.cursorRadiusMin },
         uSphereCount: { value: settingsRef.current.sphereCount },
@@ -105,10 +103,6 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
         uniform vec3 uCursorGlowColor;
         varying vec2 vUv;
 
-        const float PI = 3.14159265359;
-        const float EPSILON = 0.001;
-        const float MAX_DIST = 10.0;
-
         float smin(float a, float b, float k) {
           float h = max(k - abs(a - b), 0.0) / k;
           return min(a, b) - h * h * k * 0.25;
@@ -125,7 +119,8 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
         }
 
         float sceneSDF(vec3 pos) {
-          float result = MAX_DIST;
+          float result = 10.0;
+          
           vec3 topLeftPos = screenToWorld(vec2(0.08, 0.92));
           float topLeft = sdSphere(pos - topLeftPos, uFixedTopLeftRadius);
           vec3 smallTopLeftPos = screenToWorld(vec2(0.25, 0.72));
@@ -136,23 +131,15 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
           float smallBottomRight = sdSphere(pos - smallBottomRightPos, uSmallBottomRightRadius);
           
           float t = uTime * uAnimationSpeed;
-          
           for (int i = 0; i < 10; i++) {
             if (i >= uSphereCount) break;
             float fi = float(i);
             float speed = 0.4 + fi * 0.12;
             float radius = 0.12 + mod(fi, 3.0) * 0.06;
             float orbitRadius = (0.3 + mod(fi, 3.0) * 0.15) * uMovementScale;
-            float phaseOffset = fi * PI * 0.35;
-            
-            vec3 offset = vec3(
-              sin(t * speed + phaseOffset) * orbitRadius,
-              cos(t * speed * 0.85 + phaseOffset * 1.3) * orbitRadius * 0.6,
-              sin(t * speed * 0.5 + phaseOffset) * 0.3
-            );
-            
-            float movingSphere = sdSphere(pos - offset, radius);
-            result = smin(result, movingSphere, uSmoothness);
+            float phaseOffset = fi * 1.5;
+            vec3 offset = vec3(sin(t * speed + phaseOffset) * orbitRadius, cos(t * speed * 0.8 + phaseOffset * 1.2) * orbitRadius * 0.6, sin(t * speed * 0.5 + phaseOffset) * 0.3);
+            result = smin(result, sdSphere(pos - offset, radius), uSmoothness);
           }
 
           float cursorBall = sdSphere(pos - uCursorSphere, uCursorRadius);
@@ -172,40 +159,31 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
         void main() {
           vec2 uv = (gl_FragCoord.xy * 2.0 - uActualResolution.xy) / uActualResolution.xy;
           uv.x *= uResolution.x / uResolution.y;
-          
           vec3 ro = vec3(uv * 2.0, -2.0);
           vec3 rd = vec3(0.0, 0.0, 1.0);
-          
           float t = 0.0;
           float hit = -1.0;
-          for(int i = 0; i < 40; i++) {
-            vec3 p = ro + rd * t;
-            float d = sceneSDF(p);
-            if(d < EPSILON) { hit = t; break; }
+          for(int i = 0; i < 32; i++) {
+            float d = sceneSDF(ro + rd * t);
+            if(d < 0.001) { hit = t; break; }
             if(t > 6.0) break;
             t += d;
           }
-
           vec3 color = uBackgroundColor;
           if(hit > 0.0) {
             vec3 p = ro + rd * hit;
             vec3 n = calcNormal(p);
             vec3 lp = normalize(uLightPosition);
             float diff = max(dot(n, lp), 0.0);
-            vec3 viewDir = -rd;
-            vec3 reflectDir = reflect(-lp, n);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), uSpecularPower);
-            float fresnel = pow(1.0 - max(dot(viewDir, n), 0.0), uFresnelPower);
-            
+            float spec = pow(max(dot(-rd, reflect(-lp, n)), 0.0), uSpecularPower);
+            float fresnel = pow(1.0 - max(dot(-rd, n), 0.0), uFresnelPower);
             color = uSphereColor + uLightColor * diff * uDiffuseIntensity;
             color += uLightColor * spec * uSpecularIntensity * fresnel;
             color = mix(color, uBackgroundColor, 1.0 - exp(-hit * uFogDensity));
           } else {
-             float distToCursor = length(uv * 2.0 - uCursorSphere.xy);
-             float glow = exp(-distToCursor * uCursorGlowRadius) * uCursorGlowIntensity;
-             color += uCursorGlowColor * glow;
+             float dist = length(uv * 2.0 - uCursorSphere.xy);
+             color += uCursorGlowColor * (exp(-dist * uCursorGlowRadius) * uCursorGlowIntensity);
           }
-          
           gl_FragColor = vec4(pow(color, vec3(uContrast)), 1.0);
         }
       `,
@@ -217,105 +195,54 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
 
     const targetMouse = new THREE.Vector2(0.5, 0.5);
     const currentMouse = new THREE.Vector2(0.5, 0.5);
+    window.addEventListener('mousemove', (e) => {
+      targetMouse.x = e.clientX / window.innerWidth;
+      targetMouse.y = 1.0 - (e.clientY / window.innerHeight);
+    });
 
-    const updateWorldCursor = (clientX: number, clientY: number) => {
-      targetMouse.x = clientX / window.innerWidth;
-      targetMouse.y = 1.0 - (clientY / window.innerHeight);
-    };
-
-    const handlePointerMove = (e: MouseEvent) => updateWorldCursor(e.clientX, e.clientY);
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) updateWorldCursor(e.touches[0].clientX, e.touches[0].clientY);
-    };
-
-    window.addEventListener('mousemove', handlePointerMove);
-    window.addEventListener('touchmove', handleTouchMove);
-
-    // Tweakpane Integration - Expanded and Full
-    const pane = new Pane({ title: "Nexus Advanced Controls", expanded: !isMobile });
+    const pane = new Pane({ title: "Nexus Control", container: tpRef.current, expanded: !isMobile });
     
-    // --- PRESETS ---
     pane.addBinding(settingsRef.current, 'preset', {
       options: { Holographic: 'holographic', Minimal: 'minimal', Neon: 'neon' }
     }).on('change', (ev) => {
       const p = PRESETS[ev.value];
       if (p) {
         Object.assign(settingsRef.current, p);
-        Object.keys(p).forEach(k => {
-          const uniformKey = 'u' + k.charAt(0).toUpperCase() + k.slice(1);
-          if (shaderMaterial.uniforms[uniformKey]) {
-             shaderMaterial.uniforms[uniformKey].value = (p as any)[k];
-          }
-        });
         onUpdateSettings({ ...settingsRef.current });
         pane.refresh();
       }
     });
 
-    // --- MORPHOLOGY ---
-    const geoFolder = pane.addFolder({ title: "Morphology", expanded: true });
-    geoFolder.addBinding(settingsRef.current, 'sphereCount', { label: 'Quantity', min: 2, max: 10, step: 1 }).on('change', v => shaderMaterial.uniforms.uSphereCount.value = v.value);
-    geoFolder.addBinding(settingsRef.current, 'smoothness', { label: 'Viscosity', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmoothness.value = v.value);
-    geoFolder.addBinding(settingsRef.current, 'fixedTopLeftRadius', { label: 'Corner TL', min: 0.1, max: 1.5 }).on('change', v => shaderMaterial.uniforms.uFixedTopLeftRadius.value = v.value);
-    geoFolder.addBinding(settingsRef.current, 'fixedBottomRightRadius', { label: 'Corner BR', min: 0.1, max: 1.5 }).on('change', v => shaderMaterial.uniforms.uFixedBottomRightRadius.value = v.value);
-    geoFolder.addBinding(settingsRef.current, 'smallTopLeftRadius', { label: 'Aux TL', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallTopLeftRadius.value = v.value);
-    geoFolder.addBinding(settingsRef.current, 'smallBottomRightRadius', { label: 'Aux BR', min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallBottomRightRadius.value = v.value);
+    const f1 = pane.addFolder({ title: "Morphology" });
+    f1.addBinding(settingsRef.current, 'sphereCount', { min: 2, max: 10, step: 1 }).on('change', v => shaderMaterial.uniforms.uSphereCount.value = v.value);
+    f1.addBinding(settingsRef.current, 'smoothness', { min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmoothness.value = v.value);
+    f1.addBinding(settingsRef.current, 'animationSpeed', { min: 0.1, max: 2.0 }).on('change', v => shaderMaterial.uniforms.uAnimationSpeed.value = v.value);
+    f1.addBinding(settingsRef.current, 'movementScale', { min: 0.5, max: 2.5 }).on('change', v => shaderMaterial.uniforms.uMovementScale.value = v.value);
 
-    // --- PHYSICS & ANIMATION ---
-    const physFolder = pane.addFolder({ title: "Physics", expanded: false });
-    physFolder.addBinding(settingsRef.current, 'animationSpeed', { label: 'Evolution Speed', min: 0.1, max: 2.0 }).on('change', v => shaderMaterial.uniforms.uAnimationSpeed.value = v.value);
-    physFolder.addBinding(settingsRef.current, 'movementScale', { label: 'Orbit Amplitude', min: 0.1, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uMovementScale.value = v.value);
-    physFolder.addBinding(settingsRef.current, 'mouseSmoothness', { label: 'Cursor Inertia', min: 0.01, max: 0.5 });
-    physFolder.addBinding(settingsRef.current, 'mouseProximityEffect', { label: 'Proximity Scaling' });
-    physFolder.addBinding(settingsRef.current, 'mergeDistance', { label: 'Snap Threshold', min: 0.5, max: 3.0 });
+    const f2 = pane.addFolder({ title: "Lighting & Shading" });
+    f2.addBinding(settingsRef.current, 'diffuseIntensity', { min: 0, max: 5 }).on('change', v => shaderMaterial.uniforms.uDiffuseIntensity.value = v.value);
+    f2.addBinding(settingsRef.current, 'specularIntensity', { min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uSpecularIntensity.value = v.value);
+    f2.addBinding(settingsRef.current, 'specularPower', { min: 1, max: 64 }).on('change', v => shaderMaterial.uniforms.uSpecularPower.value = v.value);
+    f2.addBinding(settingsRef.current, 'fresnelPower', { min: 0.1, max: 10 }).on('change', v => shaderMaterial.uniforms.uFresnelPower.value = v.value);
+    f2.addBinding(settingsRef.current, 'lightColor', { view: 'color' }).on('change', v => shaderMaterial.uniforms.uLightColor.value.copy(v.value));
 
-    // --- LIGHTING ---
-    const lightFolder = pane.addFolder({ title: "Lighting", expanded: false });
-    lightFolder.addBinding(settingsRef.current, 'ambientIntensity', { label: 'Ambient', min: 0, max: 1 }).on('change', v => shaderMaterial.uniforms.uAmbientIntensity.value = v.value);
-    lightFolder.addBinding(settingsRef.current, 'diffuseIntensity', { label: 'Diffuse', min: 0, max: 5 }).on('change', v => shaderMaterial.uniforms.uDiffuseIntensity.value = v.value);
-    lightFolder.addBinding(settingsRef.current, 'specularIntensity', { label: 'Specular', min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uSpecularIntensity.value = v.value);
-    lightFolder.addBinding(settingsRef.current, 'specularPower', { label: 'Hardness', min: 1, max: 64 }).on('change', v => shaderMaterial.uniforms.uSpecularPower.value = v.value);
-    lightFolder.addBinding(settingsRef.current, 'fresnelPower', { label: 'Edge Fresnel', min: 0.1, max: 10 }).on('change', v => shaderMaterial.uniforms.uFresnelPower.value = v.value);
-    lightFolder.addBinding(settingsRef.current, 'lightPosition', { label: 'Light Vector', x: { min: -2, max: 2 }, y: { min: -2, max: 2 }, z: { min: 0.1, max: 3 } }).on('change', v => shaderMaterial.uniforms.uLightPosition.value.copy(v.value));
+    const f3 = pane.addFolder({ title: "Chromatics" });
+    f3.addBinding(settingsRef.current, 'backgroundColor', { view: 'color' }).on('change', v => shaderMaterial.uniforms.uBackgroundColor.value.copy(v.value));
+    f3.addBinding(settingsRef.current, 'sphereColor', { view: 'color' }).on('change', v => shaderMaterial.uniforms.uSphereColor.value.copy(v.value));
+    f3.addBinding(settingsRef.current, 'contrast', { min: 0.5, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uContrast.value = v.value);
+    f3.addBinding(settingsRef.current, 'fogDensity', { min: 0, max: 0.5 }).on('change', v => shaderMaterial.uniforms.uFogDensity.value = v.value);
 
-    // --- COLORS & FINISHING ---
-    const colorFolder = pane.addFolder({ title: "Chromatics", expanded: false });
-    colorFolder.addBinding(settingsRef.current, 'backgroundColor', { label: 'Environment', view: 'color' }).on('change', v => shaderMaterial.uniforms.uBackgroundColor.value.copy(v.value));
-    colorFolder.addBinding(settingsRef.current, 'sphereColor', { label: 'Metaball Core', view: 'color' }).on('change', v => shaderMaterial.uniforms.uSphereColor.value.copy(v.value));
-    colorFolder.addBinding(settingsRef.current, 'lightColor', { label: 'Primary Light', view: 'color' }).on('change', v => shaderMaterial.uniforms.uLightColor.value.copy(v.value));
-    colorFolder.addBinding(settingsRef.current, 'contrast', { label: 'Contrast', min: 0.5, max: 3.0 }).on('change', v => shaderMaterial.uniforms.uContrast.value = v.value);
-    colorFolder.addBinding(settingsRef.current, 'fogDensity', { label: 'Atmosphere', min: 0, max: 0.5 }).on('change', v => shaderMaterial.uniforms.uFogDensity.value = v.value);
+    const f4 = pane.addFolder({ title: "Cursor & Glow" });
+    f4.addBinding(settingsRef.current, 'cursorRadiusMin', { min: 0.01, max: 0.4 }).on('change', v => shaderMaterial.uniforms.uCursorRadius.value = v.value);
+    f4.addBinding(settingsRef.current, 'cursorGlowIntensity', { min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uCursorGlowIntensity.value = v.value);
+    f4.addBinding(settingsRef.current, 'cursorGlowRadius', { min: 0.5, max: 10.0 }).on('change', v => shaderMaterial.uniforms.uCursorGlowRadius.value = v.value);
+    f4.addBinding(settingsRef.current, 'cursorGlowColor', { view: 'color' }).on('change', v => shaderMaterial.uniforms.uCursorGlowColor.value.copy(v.value));
 
-    // --- CURSOR CUSTOMIZATION ---
-    const cursorFolder = pane.addFolder({ title: "Nexus Cursor", expanded: false });
-    cursorFolder.addBinding(settingsRef.current, 'cursorGlowIntensity', { label: 'Glow Boost', min: 0, max: 10 }).on('change', v => shaderMaterial.uniforms.uCursorGlowIntensity.value = v.value);
-    cursorFolder.addBinding(settingsRef.current, 'cursorGlowRadius', { label: 'Glow Falloff', min: 0.1, max: 5.0 }).on('change', v => shaderMaterial.uniforms.uCursorGlowRadius.value = v.value);
-    cursorFolder.addBinding(settingsRef.current, 'cursorGlowColor', { label: 'Glow Hue', view: 'color' }).on('change', v => shaderMaterial.uniforms.uCursorGlowColor.value.copy(v.value));
-    cursorFolder.addBinding(settingsRef.current, 'cursorRadiusMin', { label: 'Scale Range Min', min: 0.01, max: 0.5 });
-    cursorFolder.addBinding(settingsRef.current, 'cursorRadiusMax', { label: 'Scale Range Max', min: 0.1, max: 1.0 });
-
-    // --- SLIDER CONTENT ---
-    const sFolder = pane.addFolder({ title: "Slider Settings", expanded: false });
-    
-    const slide1 = sFolder.addFolder({ title: "Slide 1", expanded: false });
-    slide1.addBinding(settingsRef.current, 'slide1Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-    slide1.addBinding(settingsRef.current, 'slide1Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-
-    const slide2 = sFolder.addFolder({ title: "Slide 2", expanded: false });
-    slide2.addBinding(settingsRef.current, 'slide2Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-    slide2.addBinding(settingsRef.current, 'slide2Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-
-    const slide3 = sFolder.addFolder({ title: "Slide 3", expanded: false });
-    slide3.addBinding(settingsRef.current, 'slide3Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-    slide3.addBinding(settingsRef.current, 'slide3Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-
-    const slide4 = sFolder.addFolder({ title: "Slide 4", expanded: false });
-    slide4.addBinding(settingsRef.current, 'slide4Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-    slide4.addBinding(settingsRef.current, 'slide4Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-
-    const slide5 = sFolder.addFolder({ title: "Slide 5", expanded: false });
-    slide5.addBinding(settingsRef.current, 'slide5Title', { label: 'Title' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
-    slide5.addBinding(settingsRef.current, 'slide5Bg', { label: 'Background URL' }).on('change', () => onUpdateSettings({ ...settingsRef.current }));
+    const f5 = pane.addFolder({ title: "SDF Radii" });
+    f5.addBinding(settingsRef.current, 'fixedTopLeftRadius', { min: 0.1, max: 2.0 }).on('change', v => shaderMaterial.uniforms.uFixedTopLeftRadius.value = v.value);
+    f5.addBinding(settingsRef.current, 'fixedBottomRightRadius', { min: 0.1, max: 2.0 }).on('change', v => shaderMaterial.uniforms.uFixedBottomRightRadius.value = v.value);
+    f5.addBinding(settingsRef.current, 'smallTopLeftRadius', { min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallTopLeftRadius.value = v.value);
+    f5.addBinding(settingsRef.current, 'smallBottomRightRadius', { min: 0.1, max: 1.0 }).on('change', v => shaderMaterial.uniforms.uSmallBottomRightRadius.value = v.value);
 
     let lastTime = performance.now();
     let frameCount = 0;
@@ -329,54 +256,25 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
         frameCount = 0;
         lastTime = currentTime;
       }
-
       currentMouse.x += (targetMouse.x - currentMouse.x) * settingsRef.current.mouseSmoothness;
       currentMouse.y += (targetMouse.y - currentMouse.y) * settingsRef.current.mouseSmoothness;
-
       const aspect = window.innerWidth / window.innerHeight;
-      const wx = (currentMouse.x * 2.0 - 1.0) * aspect * 2.0;
-      const wy = (currentMouse.y * 2.0 - 1.0) * 2.0;
-
-      let currentRadius = settingsRef.current.cursorRadiusMin;
-      if (settingsRef.current.mouseProximityEffect) {
-        const distFromCenter = Math.sqrt(wx * wx + wy * wy);
-        const factor = Math.min(distFromCenter / 2.0, 1.0);
-        currentRadius = THREE.MathUtils.lerp(settingsRef.current.cursorRadiusMax, settingsRef.current.cursorRadiusMin, factor);
-      }
-      shaderMaterial.uniforms.uCursorRadius.value = currentRadius;
-
-      let merges = 0;
-      const fixedPoints = [[0.08, 0.92], [0.25, 0.72], [0.92, 0.08], [0.72, 0.25]];
-      fixedPoints.forEach(([nx, ny]) => {
-        const px = (nx * 2.0 - 1.0) * aspect * 2.0;
-        const py = (ny * 2.0 - 1.0) * 2.0;
-        const d = Math.sqrt((wx - px) ** 2 + (wy - py) ** 2);
-        if (d < settingsRef.current.mergeDistance) merges++;
-      });
-
       shaderMaterial.uniforms.uTime.value = clock.getElapsedTime();
-      shaderMaterial.uniforms.uCursorSphere.value.set(wx, wy, 0);
-      
-      onUpdateStats(wx, wy, currentRadius, merges, statsRef.current.fps);
-
+      shaderMaterial.uniforms.uCursorSphere.value.set((currentMouse.x * 2.0 - 1.0) * aspect * 2.0, (currentMouse.y * 2.0 - 1.0) * 2.0, 0);
+      onUpdateStats(0, 0, 0, 0, statsRef.current.fps);
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
     };
-
     animate();
 
     const handleResize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      renderer.setSize(w, h);
-      shaderMaterial.uniforms.uResolution.value.set(w, h);
-      shaderMaterial.uniforms.uActualResolution.value.set(w * dpr, h * dpr);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      shaderMaterial.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+      shaderMaterial.uniforms.uActualResolution.value.set(window.innerWidth * dpr, window.innerHeight * dpr);
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('mousemove', handlePointerMove);
-      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('resize', handleResize);
       pane.dispose();
       renderer.dispose();
@@ -384,9 +282,10 @@ const MetaballsScene: React.FC<MetaballsSceneProps> = ({ onUpdateStats, onUpdate
   }, []);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-0 pointer-events-none">
-      <canvas ref={canvasRef} className="block w-full h-full" />
-    </div>
+    <>
+      <div id="tweakpane-container" ref={tpRef}></div>
+      <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none" />
+    </>
   );
 };
 
