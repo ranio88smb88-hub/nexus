@@ -99,7 +99,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   const [staffNameInput, setStaffNameInput] = useState("");
   const [staffPassport, setStaffPassport] = useState("");
   const [staffRoom, setStaffRoom] = useState("");
-  const [staffEmail, setStaffEmail] = useState("");
 
   // Shift Kerja Inputs
   const [shiftStaffName, setShiftStaffName] = useState("");
@@ -256,90 +255,43 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         </ul>
       </nav>
 
-      {/* IZIN KELUAR MODAL - Refined Spacing */}
+      {/* IZIN KELUAR MODAL */}
       {showIzinModal && (
         <div className="task-modal-overlay" onClick={() => setShowIzinModal(false)}>
-          <div 
-            className="w-[95vw] max-w-[1100px] bg-black/60 border border-white/10 rounded-[3rem] p-8 md:p-12 max-h-[92vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" 
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="w-[95vw] max-w-[1100px] bg-black/60 border border-white/10 rounded-[3rem] p-8 md:p-12 max-h-[92vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-8">
               <div>
                 <h2 className="text-3xl md:text-4xl font-primary font-bold text-white uppercase tracking-tighter">Exit Authorization</h2>
-                <p className="opacity-30 text-[9px] uppercase tracking-[0.4em] mt-2 font-secondary text-[#ff6b35]">Protocol Active Monitoring</p>
+                <p className="opacity-30 text-[9px] uppercase tracking-[0.4em] mt-2 font-secondary text-[#ff6b35]">Protocol Monitor</p>
               </div>
               <button onClick={() => setShowIzinModal(false)} className="bg-white/5 hover:bg-white/10 p-4 rounded-full transition-all interactable">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden flex-1">
-              {/* Left Side: Controls */}
               <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 no-scrollbar">
                 <div className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-6">
-                  <label className="text-[9px] uppercase text-white/30 block mb-3 font-secondary tracking-widest">Select Personnel</label>
-                  <select 
-                    value={selectedStaffIzin} onChange={e => setSelectedStaffIzin(e.target.value)}
-                    className="w-full bg-black border border-white/10 rounded-2xl px-6 py-5 text-white font-primary interactable appearance-none mb-8 text-sm focus:border-[#ff6b35] outline-none"
-                  >
+                  <select value={selectedStaffIzin} onChange={e => setSelectedStaffIzin(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl px-6 py-5 text-white font-primary interactable mb-8 text-sm focus:border-[#ff6b35] outline-none">
                     <option value="">CHOOSE STAFF...</option>
                     {shifts.map(s => <option key={s.id} value={s.staff_name}>{s.staff_name}</option>)}
                   </select>
-                  
                   <div className="flex flex-col gap-3">
-                    <button 
-                      onClick={() => startIzin('KELUAR')} 
-                      disabled={!selectedStaffIzin || permissions.some(p => p.status === 'ACTIVE')} 
-                      className="w-full bg-white hover:bg-[#ff6b35] text-black hover:text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] interactable transition-all disabled:opacity-10"
-                    >
-                      Execute Exit (15m)
-                    </button>
-                    <button 
-                      onClick={() => startIzin('MAKAN')} 
-                      disabled={!selectedStaffIzin || permissions.some(p => p.status === 'ACTIVE')} 
-                      className="w-full border border-white/20 hover:border-white text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] interactable transition-all disabled:opacity-10"
-                    >
-                      Execute Meal (7m)
-                    </button>
+                    <button onClick={() => startIzin('KELUAR')} disabled={!selectedStaffIzin || permissions.some(p => p.status === 'ACTIVE')} className="w-full bg-white hover:bg-[#ff6b35] text-black hover:text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] interactable transition-all disabled:opacity-10">Execute Exit (15m)</button>
+                    <button onClick={() => startIzin('MAKAN')} disabled={!selectedStaffIzin || permissions.some(p => p.status === 'ACTIVE')} className="w-full border border-white/20 hover:border-white text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] interactable transition-all disabled:opacity-10">Execute Meal (7m)</button>
                   </div>
                 </div>
-
-                <div className={`p-8 rounded-[2rem] border transition-all text-center flex-shrink-0 ${permissions.some(p => p.status === 'ACTIVE') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-[#ff6b35]/5 border-[#ff6b35]/10 text-white'}`}>
-                  <div className="text-[9px] uppercase tracking-[0.4em] mb-3 opacity-50">System Status</div>
-                  <div className="font-primary text-xl font-bold uppercase tracking-widest">
-                    {permissions.some(p => p.status === 'ACTIVE') ? 'GATE BUSY' : 'READY'}
-                  </div>
-                </div>
+                <div className={`p-8 rounded-[2rem] border transition-all text-center ${permissions.some(p => p.status === 'ACTIVE') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-[#ff6b35]/5 border-[#ff6b35]/10 text-white'}`}><div className="text-[9px] uppercase tracking-[0.4em] mb-3 opacity-50">System Status</div><div className="font-primary text-xl font-bold uppercase">{permissions.some(p => p.status === 'ACTIVE') ? 'GATE BUSY' : 'READY'}</div></div>
               </div>
-
-              {/* Right Side: List */}
               <div className="lg:col-span-8 flex flex-col overflow-hidden bg-white/[0.01] rounded-[2rem] border border-white/5 p-2">
                 <div className="flex-1 overflow-y-auto task-list p-6 space-y-4">
-                  {permissions.length > 0 ? (
-                    permissions.map(p => (
-                      <div key={p.id} className={`p-8 rounded-[2rem] border transition-all ${p.status === 'ACTIVE' ? 'bg-[#ff6b35]/10 border-[#ff6b35]/30' : 'bg-white/[0.02] border-white/5 opacity-40'}`}>
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className={`text-[8px] px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em] mb-3 inline-block ${p.type === 'KELUAR' ? 'bg-blue-500/20 text-blue-400' : 'bg-[#ff6b35]/20 text-[#ff6b35]'}`}>
-                              {p.type} PROTOCOL
-                            </div>
-                            <h4 className="text-2xl font-primary font-bold text-white tracking-tight">{p.staff_name}</h4>
-                          </div>
-                          {p.status === 'ACTIVE' && (
-                            <div className="text-right">
-                              <div className="text-[9px] uppercase tracking-widest text-[#ff6b35] mb-1 font-secondary">T-Minus</div>
-                              <div className="text-4xl font-mono font-bold text-white tabular-nums">{getTimerString(p.end_time)}</div>
-                            </div>
-                          )}
-                        </div>
+                  {permissions.map(p => (
+                    <div key={p.id} className={`p-8 rounded-[2rem] border transition-all ${p.status === 'ACTIVE' ? 'bg-[#ff6b35]/10 border-[#ff6b35]/30' : 'bg-white/[0.02] border-white/5 opacity-40'}`}>
+                      <div className="flex justify-between items-center">
+                        <div><div className={`text-[8px] px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em] mb-3 inline-block ${p.type === 'KELUAR' ? 'bg-blue-500/20 text-blue-400' : 'bg-[#ff6b35]/20 text-[#ff6b35]'}`}>{p.type}</div><h4 className="text-2xl font-primary font-bold text-white">{p.staff_name}</h4></div>
+                        {p.status === 'ACTIVE' && <div className="text-4xl font-mono font-bold text-white">{getTimerString(p.end_time)}</div>}
                       </div>
-                    ))
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-10">
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-                      <p className="uppercase tracking-[0.8em] mt-6 text-[10px]">No Active Records</p>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             </div>
@@ -357,12 +309,20 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <input 
-              type="text" placeholder="Entri tugas baru..." value={newTask} 
-              onChange={(e) => setNewTask(e.target.value)} 
-              onKeyDown={(e) => e.key === 'Enter' && addItem('tasks', { title: newTask, is_completed: false }, setTasks, () => setNewTask(""))}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-5 mb-8 text-white font-primary text-lg interactable focus:border-[#ff6b35] outline-none"
-            />
+            <div className="flex gap-4 mb-8">
+              <input 
+                type="text" placeholder="Entri tugas baru..." value={newTask} 
+                onChange={(e) => setNewTask(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && addItem('tasks', { title: newTask, is_completed: false }, setTasks, () => setNewTask(""))}
+                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-5 text-white font-primary text-lg interactable focus:border-[#ff6b35] outline-none"
+              />
+              <button 
+                onClick={() => addItem('tasks', { title: newTask, is_completed: false }, setTasks, () => setNewTask(""))}
+                className="bg-[#ff6b35] hover:bg-white text-white hover:text-black px-10 rounded-2xl font-bold uppercase text-[10px] tracking-widest transition-all interactable"
+              >
+                SAVE
+              </button>
+            </div>
             <div className="task-list flex-1 overflow-y-auto pr-2 space-y-4">
               {tasks.map(task => (
                 <div key={task.id} className="flex items-center gap-6 p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.03]">
@@ -377,11 +337,103 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                     {task.is_completed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
                   </div>
                   <div className={`flex-1 font-primary text-white text-lg ${task.is_completed ? 'line-through opacity-30' : ''}`}>{task.title}</div>
-                  <button onClick={() => deleteItem('tasks', task.id, setTasks)} className="p-2 hover:bg-red-500/10 rounded-lg interactable transition-all">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  </button>
+                  <button onClick={() => deleteItem('tasks', task.id, setTasks)} className="p-2 hover:bg-red-500/10 rounded-lg interactable"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REPORTAN MODAL */}
+      {showReports && (
+        <div className="task-modal-overlay" onClick={() => setShowReports(false)}>
+          <div className="w-[95vw] max-w-[800px] bg-black/80 border border-white/10 rounded-[3rem] p-10 md:p-12 max-h-[85vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-10">
+              <div>
+                <h2 className="text-3xl font-primary font-bold text-white uppercase tracking-tight">Reportan</h2>
+                <p className="opacity-30 text-[9px] uppercase tracking-[0.4em] mt-3 font-secondary">Archive Logs</p>
+              </div>
+              <button onClick={() => setShowReports(false)} className="bg-white/5 hover:bg-white/10 p-4 rounded-full transition-all interactable">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+              <input type="text" placeholder="Report Title..." value={newReportTitle} onChange={e => setNewReportTitle(e.target.value)} className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-primary interactable focus:border-[#ff6b35] outline-none" />
+              <input type="text" placeholder="Description..." value={newReportDesc} onChange={e => setNewReportDesc(e.target.value)} className="bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-primary interactable focus:border-[#ff6b35] outline-none" />
+              <button onClick={() => addItem('reports', { title: newReportTitle, description: newReportDesc }, setReports, () => {setNewReportTitle(""); setNewReportDesc("");})} className="md:col-span-2 bg-white/10 hover:bg-white hover:text-black text-white py-5 rounded-2xl font-bold uppercase text-[10px] tracking-widest border border-white/10 interactable transition-all">SUBMIT REPORT</button>
+            </div>
+            <div className="task-list flex-1 overflow-y-auto pr-3 space-y-4">
+              {reports.map(report => (
+                <div key={report.id} className="p-8 rounded-[2rem] border border-white/5 bg-white/[0.03] group relative">
+                  <h4 className="text-xl font-primary font-bold text-white mb-2">{report.title}</h4>
+                  <p className="text-white/40 text-sm leading-relaxed">{report.description}</p>
+                  <button onClick={() => deleteItem('reports', report.id, setReports)} className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all interactable p-2 bg-red-500/10 rounded-lg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DATA MODAL */}
+      {showDataModal && (
+        <div className="task-modal-overlay" onClick={() => setShowDataModal(false)}>
+          <div className="w-[98vw] max-w-[1000px] bg-black/85 border border-white/10 rounded-[4rem] p-10 md:p-16 max-h-[90vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-12">
+              <h2 className="text-4xl font-primary font-bold text-white uppercase tracking-tighter">Database</h2>
+              <div className="flex gap-2 md:gap-4 bg-white/5 p-2 rounded-full border border-white/10">
+                {(['login', 'staff', 'others'] as const).map(tab => (
+                  <button key={tab} onClick={() => setActiveDataTab(tab)} className={`px-6 md:px-10 py-3 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all interactable ${activeDataTab === tab ? 'bg-white text-black shadow-lg' : 'text-white/40 hover:text-white'}`}>{tab}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {activeDataTab === 'login' && (
+                <div className="flex flex-col h-full overflow-hidden">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-10 items-end">
+                    <div className="md:col-span-6"><input type="email" placeholder="Email Address" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white interactable focus:border-[#ff6b35] outline-none" /></div>
+                    <div className="md:col-span-4"><select value={loginType} onChange={e => setLoginType(e.target.value as any)} className="w-full bg-black border border-white/10 rounded-2xl px-6 py-4 text-white interactable outline-none"><option value="BK">BK</option><option value="ADMIN">ADMIN</option><option value="POWER">POWER</option><option value="GMAIL">GMAIL</option></select></div>
+                    <button onClick={() => addItem('data_login', { email: loginEmail, login_type: loginType }, setLogins, () => setLoginEmail(""))} className="md:col-span-2 bg-[#ff6b35] hover:bg-white text-white hover:text-black py-4 rounded-2xl font-bold interactable transition-all">ADD</button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto task-list pr-4 space-y-4">
+                    {logins.map(l => (
+                      <div key={l.id} className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl group">
+                        <div><div className="text-white font-primary text-lg">{l.email}</div><div className="text-[10px] uppercase text-[#ff6b35] font-secondary mt-1">{l.login_type} ACCESS</div></div>
+                        <button onClick={() => deleteItem('data_login', l.id, setLogins)} className="p-3 text-red-500/20 group-hover:text-red-500 interactable transition-all"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeDataTab === 'staff' && (
+                <div className="flex flex-col h-full overflow-hidden">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <input placeholder="Name" value={staffNameInput} onChange={e => setStaffNameInput(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white interactable outline-none" />
+                    <input placeholder="Passport" value={staffPassport} onChange={e => setStaffPassport(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white interactable outline-none" />
+                    <input placeholder="Room" value={staffRoom} onChange={e => setStaffRoom(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white interactable outline-none" />
+                    <button onClick={() => addItem('data_staff', { name: staffNameInput, passport: staffPassport, room: staffRoom }, setStaffs, () => {setStaffNameInput(""); setStaffPassport(""); setStaffRoom("");})} className="bg-white/10 hover:bg-white hover:text-black py-4 rounded-xl font-bold uppercase text-[10px] interactable transition-all">Add Personnel</button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto task-list pr-4 space-y-4">
+                    {staffs.map(s => (
+                      <div key={s.id} className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
+                        <div className="flex gap-10 items-center">
+                          <div><div className="text-[8px] uppercase text-white/30 mb-1">Name</div><div className="text-white font-primary">{s.name}</div></div>
+                          <div><div className="text-[8px] uppercase text-white/30 mb-1">Passport</div><div className="text-white font-primary">{s.passport}</div></div>
+                          <div><div className="text-[8px] uppercase text-white/30 mb-1">Room</div><div className="text-white font-primary">{s.room}</div></div>
+                        </div>
+                        <button onClick={() => deleteItem('data_staff', s.id, setStaffs)} className="text-red-500/20 hover:text-red-500 interactable transition-all"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeDataTab === 'others' && (
+                <div className="flex-1 flex items-center justify-center opacity-10 uppercase tracking-[1em] text-xs">No Records Found</div>
+              )}
             </div>
           </div>
         </div>
@@ -398,18 +450,18 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
-              <input placeholder="Staff Name" value={shiftStaffName} onChange={e => setShiftStaffName(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm" />
-              <input type="time" value={shiftIn} onChange={e => setShiftIn(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm" />
-              <input type="time" value={shiftOut} onChange={e => setShiftOut(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm" />
+              <input placeholder="Staff Name" value={shiftStaffName} onChange={e => setShiftStaffName(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm focus:border-[#ff6b35] outline-none" />
+              <input type="time" value={shiftIn} onChange={e => setShiftIn(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm outline-none" />
+              <input type="time" value={shiftOut} onChange={e => setShiftOut(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm outline-none" />
               <button onClick={() => addItem('shift_kerja', { staff_name: shiftStaffName, shift_in: shiftIn, shift_out: shiftOut }, setShifts, () => setShiftStaffName(""))} className="bg-[#ff6b35] hover:bg-white text-white hover:text-black py-4 rounded-xl transition-all font-bold text-[11px] tracking-widest interactable">ADD</button>
             </div>
-            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            <div className="flex-1 overflow-y-auto task-list pr-2 space-y-4">
               {shifts.map(s => (
-                <div key={s.id} className="grid grid-cols-4 items-center p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
+                <div key={s.id} className="grid grid-cols-4 items-center p-6 bg-white/[0.02] border border-white/5 rounded-2xl group">
                   <div className="text-white font-primary font-bold">{s.staff_name}</div>
                   <div className="text-white/40 text-[9px] uppercase font-secondary">IN: {s.shift_in}</div>
                   <div className="text-white/40 text-[9px] uppercase font-secondary">OUT: {s.shift_out}</div>
-                  <button onClick={() => deleteItem('shift_kerja', s.id, setShifts)} className="justify-self-end text-red-500/40 hover:text-red-500 interactable"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                  <button onClick={() => deleteItem('shift_kerja', s.id, setShifts)} className="justify-self-end text-red-500/20 group-hover:text-red-500 interactable transition-all"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </div>
               ))}
             </div>
