@@ -110,62 +110,83 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     return () => clearInterval(timer);
   }, []);
 
-  // Helper to save to local storage if supabase is null
   const saveToLocal = (table: string, data: any) => {
-    if (!supabase) {
-      localStorage.setItem(`nexus_cache_${table}`, JSON.stringify(data));
-    }
+    localStorage.setItem(`nexus_cache_${table}`, JSON.stringify(data));
   };
 
-  const fetchData = async (table: string, setter: any) => {
-    if (!supabase) {
-      const cached = localStorage.getItem(`nexus_cache_${table}`);
-      if (cached) setter(JSON.parse(cached));
-      return;
-    }
-    try {
-      const { data } = await supabase.from(table).select('*').order('created_at', { ascending: false });
-      if (data) setter(data);
-    } catch (err) { console.error(`Error fetch ${table}:`, err); }
+  const getFromLocal = (table: string) => {
+    const cached = localStorage.getItem(`nexus_cache_${table}`);
+    return cached ? JSON.parse(cached) : [];
   };
 
+  // REALTIME SUBSCRIPTION LOGIC
   useEffect(() => {
-    fetchData('tasks', setTasks);
-    fetchData('reports', setReports);
-    fetchData('data_login', setLogins);
-    fetchData('data_staff', setStaffs);
-    fetchData('shift_kerja', setShifts);
-    fetchData('permissions', setPermissions);
-  }, [showTasks, showReports, showDataModal, showShiftModal, showIzinModal]);
+    const tables = ['tasks', 'reports', 'data_login', 'data_staff', 'shift_kerja', 'permissions'];
+    
+    // Initial Fetch & Local Fallback
+    tables.forEach(table => {
+      const setter = 
+        table === 'tasks' ? setTasks :
+        table === 'reports' ? setReports :
+        table === 'data_login' ? setLogins :
+        table === 'data_staff' ? setStaffs :
+        table === 'shift_kerja' ? setShifts :
+        setPermissions;
+
+      const cached = getFromLocal(table);
+      if (cached.length > 0) setter(cached);
+
+      if (supabase) {
+        supabase.from(table).select('*').order('created_at', { ascending: false })
+          .then(({ data }) => {
+            if (data) {
+              setter(data);
+              saveToLocal(table, data);
+            }
+          });
+
+        // Subscribe to real-time changes
+        const channel = supabase
+          .channel(`public:${table}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: table }, (payload) => {
+            console.log(`Realtime change in ${table}:`, payload);
+            // Re-fetch the whole list to maintain order or handle logic simply
+            supabase.from(table).select('*').order('created_at', { ascending: false })
+              .then(({ data }) => {
+                if (data) {
+                  setter(data);
+                  saveToLocal(table, data);
+                }
+              });
+          })
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }
+    });
+  }, []);
 
   const addItem = async (table: string, payload: any, setter: any, clearInputs: () => void) => {
     const tempId = Date.now();
     const newItem = { ...payload, id: tempId, created_at: new Date().toISOString() };
 
-    if (!supabase) {
-      setter((prev: any) => {
-        const next = [newItem, ...prev];
-        saveToLocal(table, next);
-        return next;
-      });
-      clearInputs();
-      return;
-    }
+    // Update Local First (Optimistic UI)
+    setter((prev: any) => {
+      const next = [newItem, ...prev];
+      saveToLocal(table, next);
+      return next;
+    });
+    clearInputs();
 
-    try {
-      const { data, error } = await supabase.from(table).insert([payload]).select();
-      if (error) throw error;
-      if (data) {
-        setter((prev: any) => [data[0], ...prev]);
-        clearInputs();
+    if (supabase) {
+      try {
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) throw error;
+      } catch (err) {
+        console.error("Supabase Add Error:", err);
       }
-    } catch (err) { 
-      setter((prev: any) => {
-        const next = [newItem, ...prev];
-        saveToLocal(table, next);
-        return next;
-      });
-      clearInputs();
     }
   };
 
@@ -175,8 +196,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
       saveToLocal(table, next);
       return next;
     });
-    if (!supabase) return;
-    try { await supabase.from(table).delete().eq('id', id); } catch (err) {}
+
+    if (supabase) {
+      try {
+        await supabase.from(table).delete().eq('id', id);
+      } catch (err) {
+        console.error("Supabase Delete Error:", err);
+      }
+    }
   };
 
   const startIzin = async (type: 'KELUAR' | 'MAKAN') => {
@@ -220,13 +247,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
       penalty: penaltyString 
     };
 
-    setterLoop: {
-        setPermissions(prev => {
-            const next = prev.map(p => p.id === permissionId ? { ...p, ...updatedData } : p);
-            saveToLocal('permissions', next);
-            return next;
-        });
-    }
+    setPermissions(prev => {
+      const next = prev.map(p => p.id === permissionId ? { ...p, ...updatedData } : p);
+      saveToLocal('permissions', next);
+      return next;
+    });
 
     if (supabase) {
       await supabase.from('permissions').update(updatedData).eq('id', permissionId);
@@ -352,7 +377,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
             <div className="task-list flex-1 overflow-y-auto pr-2 space-y-4">
               {tasks.map(task => (
                 <div key={task.id} className="flex items-center gap-6 p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.03]">
-                  <div className={`w-7 h-7 border-2 rounded-lg cursor-pointer flex items-center justify-center transition-all interactable ${task.is_completed ? 'bg-[#ff6b35] border-[#ff6b35]' : 'border-white/20'}`} onClick={async () => { const newState = !task.is_completed; setTasks(prev => { const next = prev.map(t => t.id === task.id ? { ...t, is_completed: newState } : t); saveToLocal('tasks', next); return next; }); if (supabase) await supabase.from('tasks').update({ is_completed: newState }).eq('id', task.id); }}>{task.is_completed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}</div>
+                  <div className={`w-7 h-7 border-2 rounded-lg cursor-pointer flex items-center justify-center transition-all interactable ${task.is_completed ? 'bg-[#ff6b35] border-[#ff6b35]' : 'border-white/20'}`} onClick={async () => { 
+                      const newState = !task.is_completed;
+                      if (supabase) await supabase.from('tasks').update({ is_completed: newState }).eq('id', task.id);
+                  }}>{task.is_completed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}</div>
                   <div className={`flex-1 font-primary text-white text-lg ${task.is_completed ? 'line-through opacity-30' : ''}`}>{task.title}</div>
                   <button onClick={() => deleteItem('tasks', task.id, setTasks)} className="p-2 hover:bg-red-500/10 rounded-lg interactable"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </div>
