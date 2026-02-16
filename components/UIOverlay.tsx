@@ -101,15 +101,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   const [staffRoom, setStaffRoom] = useState("");
   const [staffEmail, setStaffEmail] = useState("");
 
-  // Data Others Inputs
-  const [othersEmail, setOthersEmail] = useState("");
-  const [othersType, setOthersType] = useState("");
-
   // Shift Kerja Inputs
   const [shiftStaffName, setShiftStaffName] = useState("");
   const [shiftIn, setShiftIn] = useState("");
   const [shiftOut, setShiftOut] = useState("");
-  const [shiftTotalHours, setShiftTotalHours] = useState("");
 
   // Izin Keluar Inputs
   const [selectedStaffIzin, setSelectedStaffIzin] = useState("");
@@ -118,19 +113,18 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   const trackRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const activeTasksCount = tasks.filter(t => !t.is_completed).length;
+  const menuItems = navData?.length > 0 ? navData : [
+    { label: 'tugas today' },
+    { label: 'reportan' },
+    { label: 'data' },
+    { label: 'shift kerja' },
+    { label: 'izin keluar' }
+  ];
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const formatTimestamp = (dateString: string) => {
-    const date = new Date(dateString);
-    const timeFormatter = new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const dateFormatter = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `${timeFormatter.format(date)} • ${dateFormatter.format(date)}`;
-  };
 
   const fetchData = async (table: string, setter: any) => {
     if (!supabase) return;
@@ -176,32 +170,24 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     } catch (err) { console.error(`Error delete from ${table}:`, err); }
   };
 
-  // Logic Izin Keluar
   const startIzin = async (type: 'KELUAR' | 'MAKAN') => {
     if (!selectedStaffIzin || !supabase) return;
-    
-    // Validasi tabrakan: Hanya 1 orang yang boleh aktif
     const anyActive = permissions.some(p => p.status === 'ACTIVE');
     if (anyActive) {
-      alert("Sistem Lock: Masih ada staff lain yang berada di luar. Harap tunggu.");
+      alert("Sistem Terkunci: Masih ada personel di luar.");
       return;
     }
-
-    // Validasi Jatah
     const today = new Date().toDateString();
     const staffHistory = permissions.filter(p => p.staff_name === selectedStaffIzin && new Date(p.start_time).toDateString() === today);
     const count = staffHistory.filter(p => p.type === type).length;
     const limit = type === 'KELUAR' ? 4 : 3;
-
     if (count >= limit) {
-      alert(`Jatah Izin ${type} untuk hari ini sudah habis (${limit}x).`);
+      alert(`Jatah hari ini habis (${limit}x).`);
       return;
     }
-
     const durationMinutes = type === 'KELUAR' ? 15 : 7;
     const startTime = new Date();
     const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
-
     await addItem('permissions', {
       staff_name: selectedStaffIzin,
       type: type,
@@ -226,15 +212,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     return () => clearInterval(check);
   }, [checkAutoExpiry]);
 
-  const getRemainingQuotas = (staffName: string) => {
-    const today = new Date().toDateString();
-    const history = permissions.filter(p => p.staff_name === staffName && new Date(p.start_time).toDateString() === today);
-    return {
-      keluar: 4 - history.filter(p => p.type === 'KELUAR').length,
-      makan: 3 - history.filter(p => p.type === 'MAKAN').length
-    };
-  };
-
   const getTimerString = (endTime: string) => {
     const end = new Date(endTime).getTime();
     const diff = end - now.getTime();
@@ -255,12 +232,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   return (
     <div className="ui-overlay-root">
       {/* Navigation Layer */}
-      <nav className="fixed top-0 left-0 w-full p-12 flex justify-start items-center z-[110] pointer-events-auto">
-        <ul className="flex gap-12 list-none">
-          {navData.map((item, i) => (
-            <li key={i}>
+      <nav className="fixed top-0 left-0 w-full p-6 md:p-12 flex justify-start items-center z-[500] pointer-events-auto">
+        <ul className="flex gap-6 md:gap-12 list-none m-0 p-0 overflow-x-auto no-scrollbar">
+          {menuItems.map((item, i) => (
+            <li key={i} className="flex-shrink-0">
               <button 
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   const label = item.label.toLowerCase();
                   if (label.includes('tugas')) setShowTasks(true);
                   else if (label.includes('reportan')) setShowReports(true);
@@ -268,7 +247,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                   else if (label.includes('shift')) setShowShiftModal(true);
                   else if (label.includes('izin')) setShowIzinModal(true);
                 }}
-                className="font-primary text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all cursor-pointer bg-transparent border-none outline-none interactable"
+                className="font-primary text-[9px] md:text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-[#ff6b35] transition-all cursor-pointer bg-transparent border-none outline-none interactable"
               >
                 {item.label}
               </button>
@@ -277,108 +256,90 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         </ul>
       </nav>
 
-      {/* IZIN KELUAR MODAL - Refined Aesthetic */}
+      {/* IZIN KELUAR MODAL - Refined Spacing */}
       {showIzinModal && (
         <div className="task-modal-overlay" onClick={() => setShowIzinModal(false)}>
-          <div className="w-full max-w-[1000px] bg-black/80 border border-white/10 rounded-[3.5rem] p-12 max-h-[92vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-start mb-10">
+          <div 
+            className="w-[95vw] max-w-[1100px] bg-black/60 border border-white/10 rounded-[3rem] p-8 md:p-12 max-h-[92vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-4xl font-primary font-bold text-white uppercase tracking-tight">Gate Protocol</h2>
-                <p className="opacity-30 text-[9px] uppercase tracking-[0.4em] mt-3 font-secondary text-[#ff6b35]">System Personnel Logic</p>
+                <h2 className="text-3xl md:text-4xl font-primary font-bold text-white uppercase tracking-tighter">Exit Authorization</h2>
+                <p className="opacity-30 text-[9px] uppercase tracking-[0.4em] mt-2 font-secondary text-[#ff6b35]">Protocol Active Monitoring</p>
               </div>
-              <button onClick={() => setShowIzinModal(false)} className="bg-white/5 hover:bg-white/10 p-5 rounded-full transition-all interactable">
+              <button onClick={() => setShowIzinModal(false)} className="bg-white/5 hover:bg-white/10 p-4 rounded-full transition-all interactable">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 overflow-hidden flex-1">
-              <div className="lg:col-span-5 flex flex-col gap-6">
-                <div className="bg-white/[0.03] border border-white/5 rounded-[2.5rem] p-8 backdrop-blur-md">
-                  <div className="mb-6">
-                    <label className="text-[9px] uppercase text-white/30 block mb-3 font-secondary">Target Personnel</label>
-                    <select 
-                      value={selectedStaffIzin} 
-                      onChange={e => setSelectedStaffIzin(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white font-primary outline-none focus:border-[#ff6b35] transition-all interactable appearance-none"
-                    >
-                      <option value="" className="bg-black">SELECT STAFF...</option>
-                      {shifts.map(s => (
-                        <option key={s.id} value={s.staff_name} className="bg-black">{s.staff_name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedStaffIzin && (
-                    <div className="mb-8 grid grid-cols-2 gap-4">
-                      <div className="bg-white/5 p-5 rounded-2xl border border-white/5 text-center">
-                        <span className="text-[8px] uppercase text-white/20 block mb-2">Keluar</span>
-                        <span className="text-white font-mono text-2xl">{getRemainingQuotas(selectedStaffIzin).keluar}/4</span>
-                      </div>
-                      <div className="bg-white/5 p-5 rounded-2xl border border-white/5 text-center">
-                        <span className="text-[8px] uppercase text-white/20 block mb-2">Makan</span>
-                        <span className="text-white font-mono text-2xl">{getRemainingQuotas(selectedStaffIzin).makan}/3</span>
-                      </div>
-                    </div>
-                  )}
-
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden flex-1">
+              {/* Left Side: Controls */}
+              <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 no-scrollbar">
+                <div className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-6">
+                  <label className="text-[9px] uppercase text-white/30 block mb-3 font-secondary tracking-widest">Select Personnel</label>
+                  <select 
+                    value={selectedStaffIzin} onChange={e => setSelectedStaffIzin(e.target.value)}
+                    className="w-full bg-black border border-white/10 rounded-2xl px-6 py-5 text-white font-primary interactable appearance-none mb-8 text-sm focus:border-[#ff6b35] outline-none"
+                  >
+                    <option value="">CHOOSE STAFF...</option>
+                    {shifts.map(s => <option key={s.id} value={s.staff_name}>{s.staff_name}</option>)}
+                  </select>
+                  
                   <div className="flex flex-col gap-3">
                     <button 
-                      onClick={() => startIzin('KELUAR')}
-                      disabled={!selectedStaffIzin}
-                      className="w-full bg-white/5 hover:bg-white text-white hover:text-black py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] transition-all border border-white/10 interactable disabled:opacity-20 disabled:cursor-not-allowed"
+                      onClick={() => startIzin('KELUAR')} 
+                      disabled={!selectedStaffIzin || permissions.some(p => p.status === 'ACTIVE')} 
+                      className="w-full bg-white hover:bg-[#ff6b35] text-black hover:text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] interactable transition-all disabled:opacity-10"
                     >
-                      EXECUTE EXIT (15m)
+                      Execute Exit (15m)
                     </button>
                     <button 
-                      onClick={() => startIzin('MAKAN')}
-                      disabled={!selectedStaffIzin}
-                      className="w-full border border-[#ff6b35]/20 hover:bg-[#ff6b35] text-[#ff6b35] hover:text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] transition-all interactable disabled:opacity-20 disabled:cursor-not-allowed"
+                      onClick={() => startIzin('MAKAN')} 
+                      disabled={!selectedStaffIzin || permissions.some(p => p.status === 'ACTIVE')} 
+                      className="w-full border border-white/20 hover:border-white text-white py-6 rounded-2xl font-bold uppercase text-[10px] tracking-[0.3em] interactable transition-all disabled:opacity-10"
                     >
-                      EXECUTE MEAL (7m)
+                      Execute Meal (7m)
                     </button>
                   </div>
                 </div>
 
-                <div className={`p-8 rounded-[2.5rem] flex flex-col items-center justify-center text-center transition-all ${permissions.some(p => p.status === 'ACTIVE') ? 'bg-red-500/5 border border-red-500/20' : 'bg-[#ff6b35]/5 border border-[#ff6b35]/10'}`}>
-                  <div className="text-[9px] uppercase tracking-[0.4em] mb-2 opacity-50">Operational Lock</div>
-                  <div className="text-white font-primary text-xl font-bold uppercase tracking-widest">
-                    {permissions.some(p => p.status === 'ACTIVE') ? 'SYSTEM OCCUPIED' : 'CLEAR FOR EXIT'}
+                <div className={`p-8 rounded-[2rem] border transition-all text-center flex-shrink-0 ${permissions.some(p => p.status === 'ACTIVE') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-[#ff6b35]/5 border-[#ff6b35]/10 text-white'}`}>
+                  <div className="text-[9px] uppercase tracking-[0.4em] mb-3 opacity-50">System Status</div>
+                  <div className="font-primary text-xl font-bold uppercase tracking-widest">
+                    {permissions.some(p => p.status === 'ACTIVE') ? 'GATE BUSY' : 'READY'}
                   </div>
                 </div>
               </div>
 
-              <div className="lg:col-span-7 flex flex-col overflow-hidden">
-                <div className="mb-6 relative">
-                  <input 
-                    type="text" placeholder="FILTER ARCHIVE..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-5 text-white text-xs interactable focus:border-[#ff6b35] outline-none"
-                  />
-                  <svg className="absolute left-5 top-1/2 -translate-y-1/2 opacity-20" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                </div>
-
-                <div className="flex-1 overflow-y-auto task-list pr-4 space-y-4">
-                  {permissions.filter(p => p.staff_name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
-                    <div key={p.id} className={`p-8 rounded-[2.5rem] border transition-all ${p.status === 'ACTIVE' ? 'bg-[#ff6b35]/10 border-[#ff6b35]/40 shadow-xl' : 'bg-white/[0.02] border-white/5 opacity-40'}`}>
-                      <div className="flex justify-between items-center mb-6">
-                        <div>
-                          <span className={`text-[8px] px-3 py-1 rounded font-bold uppercase tracking-[0.2em] mb-3 inline-block ${p.type === 'KELUAR' ? 'bg-blue-500/20 text-blue-400' : 'bg-[#ff6b35]/20 text-[#ff6b35]'}`}>
-                            {p.type} PROTOCOL
-                          </span>
-                          <h4 className="text-2xl font-primary font-bold text-white tracking-tight">{p.staff_name}</h4>
-                        </div>
-                        {p.status === 'ACTIVE' && (
-                          <div className="text-right">
-                            <div className="text-[10px] uppercase tracking-widest text-[#ff6b35] mb-1 font-secondary">T-MINUS</div>
-                            <div className="text-4xl font-mono font-bold text-white">{getTimerString(p.end_time)}</div>
+              {/* Right Side: List */}
+              <div className="lg:col-span-8 flex flex-col overflow-hidden bg-white/[0.01] rounded-[2rem] border border-white/5 p-2">
+                <div className="flex-1 overflow-y-auto task-list p-6 space-y-4">
+                  {permissions.length > 0 ? (
+                    permissions.map(p => (
+                      <div key={p.id} className={`p-8 rounded-[2rem] border transition-all ${p.status === 'ACTIVE' ? 'bg-[#ff6b35]/10 border-[#ff6b35]/30' : 'bg-white/[0.02] border-white/5 opacity-40'}`}>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className={`text-[8px] px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em] mb-3 inline-block ${p.type === 'KELUAR' ? 'bg-blue-500/20 text-blue-400' : 'bg-[#ff6b35]/20 text-[#ff6b35]'}`}>
+                              {p.type} PROTOCOL
+                            </div>
+                            <h4 className="text-2xl font-primary font-bold text-white tracking-tight">{p.staff_name}</h4>
                           </div>
-                        )}
+                          {p.status === 'ACTIVE' && (
+                            <div className="text-right">
+                              <div className="text-[9px] uppercase tracking-widest text-[#ff6b35] mb-1 font-secondary">T-Minus</div>
+                              <div className="text-4xl font-mono font-bold text-white tabular-nums">{getTimerString(p.end_time)}</div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-8 text-[9px] uppercase tracking-[0.2em] text-white/30 font-secondary border-t border-white/5 pt-4">
-                        <span>INITIATED: {new Date(p.start_time).toLocaleTimeString()}</span>
-                        <span>EXPIRY: {new Date(p.end_time).toLocaleTimeString()}</span>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center opacity-10">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                      <p className="uppercase tracking-[0.8em] mt-6 text-[10px]">No Active Records</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -386,7 +347,77 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         </div>
       )}
 
-      {/* Sliders and other modals remain with existing structure but updated with latest features */}
+      {/* TASKS MODAL */}
+      {showTasks && (
+        <div className="task-modal-overlay" onClick={() => setShowTasks(false)}>
+          <div className="w-[90vw] max-w-[650px] bg-black/80 border border-white/10 rounded-[3rem] p-10 max-h-[85vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-8">
+              <h2 className="text-3xl font-primary font-bold text-white uppercase tracking-tight">Tugas Today</h2>
+              <button onClick={() => setShowTasks(false)} className="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all interactable">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <input 
+              type="text" placeholder="Entri tugas baru..." value={newTask} 
+              onChange={(e) => setNewTask(e.target.value)} 
+              onKeyDown={(e) => e.key === 'Enter' && addItem('tasks', { title: newTask, is_completed: false }, setTasks, () => setNewTask(""))}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-5 mb-8 text-white font-primary text-lg interactable focus:border-[#ff6b35] outline-none"
+            />
+            <div className="task-list flex-1 overflow-y-auto pr-2 space-y-4">
+              {tasks.map(task => (
+                <div key={task.id} className="flex items-center gap-6 p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.03]">
+                  <div 
+                    className={`w-7 h-7 border-2 rounded-lg cursor-pointer flex items-center justify-center transition-all interactable ${task.is_completed ? 'bg-[#ff6b35] border-[#ff6b35]' : 'border-white/20'}`} 
+                    onClick={async () => {
+                      if (!supabase) return;
+                      await supabase.from('tasks').update({ is_completed: !task.is_completed }).eq('id', task.id);
+                      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, is_completed: !t.is_completed } : t));
+                    }}
+                  >
+                    {task.is_completed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
+                  </div>
+                  <div className={`flex-1 font-primary text-white text-lg ${task.is_completed ? 'line-through opacity-30' : ''}`}>{task.title}</div>
+                  <button onClick={() => deleteItem('tasks', task.id, setTasks)} className="p-2 hover:bg-red-500/10 rounded-lg interactable transition-all">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHIFT KERJA MODAL */}
+      {showShiftModal && (
+        <div className="task-modal-overlay" onClick={() => setShowShiftModal(false)}>
+          <div className="w-[95vw] max-w-[850px] bg-black/80 border border-white/10 rounded-[3rem] p-10 max-h-[85vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-8">
+              <h2 className="text-3xl font-primary font-bold text-white uppercase tracking-tighter">Shift Kerja</h2>
+              <button onClick={() => setShowShiftModal(false)} className="bg-white/5 hover:bg-white/10 p-4 rounded-full transition-all interactable">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
+              <input placeholder="Staff Name" value={shiftStaffName} onChange={e => setShiftStaffName(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm" />
+              <input type="time" value={shiftIn} onChange={e => setShiftIn(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm" />
+              <input type="time" value={shiftOut} onChange={e => setShiftOut(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-6 py-4 text-white interactable text-sm" />
+              <button onClick={() => addItem('shift_kerja', { staff_name: shiftStaffName, shift_in: shiftIn, shift_out: shiftOut }, setShifts, () => setShiftStaffName(""))} className="bg-[#ff6b35] hover:bg-white text-white hover:text-black py-4 rounded-xl transition-all font-bold text-[11px] tracking-widest interactable">ADD</button>
+            </div>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+              {shifts.map(s => (
+                <div key={s.id} className="grid grid-cols-4 items-center p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
+                  <div className="text-white font-primary font-bold">{s.staff_name}</div>
+                  <div className="text-white/40 text-[9px] uppercase font-secondary">IN: {s.shift_in}</div>
+                  <div className="text-white/40 text-[9px] uppercase font-secondary">OUT: {s.shift_out}</div>
+                  <button onClick={() => deleteItem('shift_kerja', s.id, setShifts)} className="justify-self-end text-red-500/40 hover:text-red-500 interactable"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Slider Section */}
       <section className="slider-section">
         <div className="slider-container" ref={containerRef}>
           <div className="slider-track" ref={trackRef}>
@@ -396,12 +427,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                 <div className="absolute inset-0 z-20 flex flex-col justify-center items-center p-12 text-center pointer-events-none">
                   {idx === activeIdx ? (
                     <div className="animate-in fade-in zoom-in-95 duration-1000 flex flex-col items-center">
-                      <h3 className="text-6xl font-primary font-bold text-white uppercase tracking-tighter mb-6">{item.title}</h3>
-                      <p className="text-white/60 max-w-sm font-primary mb-10 text-xl leading-relaxed">{item.desc}</p>
-                      <button className="px-12 py-5 rounded-full border border-white/20 bg-white/5 text-white uppercase text-[11px] font-bold tracking-[0.3em] hover:bg-white hover:text-black transition-all interactable">Enter Protocol</button>
+                      <h3 className="text-4xl md:text-6xl font-primary font-bold text-white uppercase tracking-tighter mb-6">{item.title}</h3>
+                      <p className="text-white/60 max-w-sm font-primary mb-10 text-lg md:text-xl leading-relaxed">{item.desc}</p>
+                      <button className="px-10 py-4 rounded-full border border-white/20 bg-white/5 text-white uppercase text-[10px] font-bold tracking-[0.3em] hover:bg-white hover:text-black transition-all interactable">Enter Protocol</button>
                     </div>
                   ) : (
-                    <h3 className="text-xl font-primary font-bold text-white/30 uppercase tracking-[0.4em] writing-vertical rotate-180 transform">{item.title}</h3>
+                    <h3 className="text-lg md:text-xl font-primary font-bold text-white/30 uppercase tracking-[0.4em] writing-vertical rotate-180 transform">{item.title}</h3>
                   )}
                 </div>
               </article>
@@ -410,10 +441,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         </div>
       </section>
 
-      {/* Task, Report, Shift, Data Modals - standard implementation as per previous turns */}
-      {/* (Abbreviated here for brevity, keep existing implementations for these) */}
-      
-      <div className="fixed bottom-10 right-10 opacity-20 font-mono text-[9px] uppercase tracking-[0.4em] text-white pointer-events-none">
+      <div className="fixed bottom-6 right-6 opacity-20 font-mono text-[8px] uppercase tracking-[0.4em] text-white pointer-events-none z-[100]">
         System Active // {stats.fps} FPS
       </div>
     </div>
