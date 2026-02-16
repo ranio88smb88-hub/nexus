@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings } from '../types';
 import { supabase } from '../lib/supabase';
@@ -39,22 +40,25 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   const addTask = async () => {
     if (!newTask.trim() || !supabase) return;
     const { data } = await supabase.from('tasks').insert([{ title: newTask, is_completed: false }]).select();
-    if (data) { setTasks([data[0], ...tasks]); setNewTask(""); }
+    if (data) { 
+      setTasks(prev => [data[0], ...prev]); 
+      setNewTask(""); 
+    }
   };
 
   const toggleTask = async (task: Task) => {
     if (!supabase) return;
     await supabase.from('tasks').update({ is_completed: !task.is_completed }).eq('id', task.id);
-    setTasks(tasks.map(t => t.id === task.id ? { ...t, is_completed: !t.is_completed } : t));
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, is_completed: !t.is_completed } : t));
   };
 
   const deleteTask = async (id: number) => {
     if (!supabase) return;
     await supabase.from('tasks').delete().eq('id', id);
-    setTasks(tasks.filter(t => t.id !== id));
+    setTasks(prev => prev.filter(t => t.id !== id));
   };
 
-  const items = sliderData.length > 0 ? sliderData : [
+  const items = sliderData && sliderData.length > 0 ? sliderData : [
     { title: config.slide1Title, bg: config.slide1Bg, desc: "Update harian skor pertandingan." },
     { title: config.slide2Title, bg: config.slide2Bg, desc: "Rekap data togel terpercaya." },
     { title: config.slide3Title, bg: config.slide3Bg, desc: "Layanan verifikasi rekening." },
@@ -62,7 +66,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     { title: config.slide5Title, bg: config.slide5Bg, desc: "Detail hadiah togel." }
   ];
 
-  const navs = navData.length > 0 ? navData : [
+  const navs = navData && navData.length > 0 ? navData : [
     { label: 'tugas today' }, { label: 'reportan' }, { label: 'data' }, { label: 'shift kerja' }, { label: 'izin keluar' }
   ];
 
@@ -83,6 +87,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     centerCard(index);
   };
 
+  // Menangani penutupan modal saat klik area luar
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    setShowTasks(false);
+  };
+
+  // Menangani penghentian propagasi klik agar modal tidak tertutup saat diklik isinya
+  const handleModalContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+  };
+
   return (
     <div className="ui-overlay-root">
       {/* Navigation Layer */}
@@ -92,7 +106,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
             <li key={i}>
               <button 
                 onClick={() => item.label.toLowerCase().includes('tugas') ? setShowTasks(true) : null}
-                className="font-primary text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all cursor-pointer bg-transparent border-none outline-none"
+                className="font-primary text-[10px] uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all cursor-pointer bg-transparent border-none outline-none interactable"
               >
                 {item.label}
               </button>
@@ -103,8 +117,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
       {/* Task Modal Layer */}
       {showTasks && (
-        <div className="task-modal-overlay interactable" onClick={() => setShowTasks(false)}>
-          <div className="w-full max-w-[650px] bg-white/[0.04] border border-white/10 rounded-[3rem] p-12 max-h-[85vh] flex flex-col pointer-events-auto shadow-3xl" onClick={e => e.stopPropagation()}>
+        <div className="task-modal-overlay" onClick={handleOverlayClick}>
+          <div className="w-full max-w-[650px] bg-white/[0.04] border border-white/10 rounded-[3rem] p-12 max-h-[85vh] flex flex-col pointer-events-auto shadow-2xl" onClick={handleModalContentClick}>
             <div className="flex justify-between items-start mb-10">
               <div>
                 <h2 className="text-3xl font-primary font-bold text-white uppercase tracking-tight flex items-center gap-4">
@@ -119,7 +133,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
             </div>
             <div className="relative mb-10">
               <input 
-                type="text" placeholder="Entri tugas baru..." value={newTask} onChange={(e) => setNewTask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addTask()}
+                type="text" 
+                placeholder="Entri tugas baru..." 
+                value={newTask} 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTask(e.target.value)} 
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && addTask()}
                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-6 focus:outline-none focus:border-[#ff6b35] transition-all text-white font-primary text-lg"
               />
             </div>
@@ -132,7 +150,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                     {task.is_completed && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
                   </div>
                   <div className="flex-1 font-primary text-white text-xl tracking-tight">{task.title}</div>
-                  <button onClick={() => deleteTask(task.id)} className="opacity-0 hover:opacity-100 transition-opacity p-3 bg-red-500/10 rounded-xl">
+                  <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 p-3 bg-red-500/10 rounded-xl transition-all hover:bg-red-500/20">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 </div>
@@ -144,7 +162,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
       {/* Slider Section Layer */}
       <section className="slider-section">
-        <div className="slider-container interactable" ref={containerRef}>
+        <div className="slider-container" ref={containerRef}>
           <div className="slider-track" ref={trackRef}>
             {items.map((item, idx) => (
               <article 
