@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings } from '../types';
 import { supabase } from '../lib/supabase';
@@ -29,8 +28,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
   const fetchTasks = async () => {
     if (!supabase) return;
-    const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-    if (data) setTasks(data);
+    try {
+      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+      if (data) setTasks(data);
+    } catch (err) {
+      console.error("Failed to fetch tasks:", err);
+    }
   };
 
   useEffect(() => {
@@ -39,7 +42,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
   const addTask = async () => {
     if (!newTask.trim() || !supabase) return;
-    const { data } = await supabase.from('tasks').insert([{ title: newTask, is_completed: false }]).select();
+    const { data, error } = await supabase.from('tasks').insert([{ title: newTask, is_completed: false }]).select();
+    if (error) {
+      console.error("Error adding task:", error);
+      return;
+    }
     if (data) { 
       setTasks(prev => [data[0], ...prev]); 
       setNewTask(""); 
@@ -48,14 +55,18 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
   const toggleTask = async (task: Task) => {
     if (!supabase) return;
-    await supabase.from('tasks').update({ is_completed: !task.is_completed }).eq('id', task.id);
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, is_completed: !t.is_completed } : t));
+    const { error } = await supabase.from('tasks').update({ is_completed: !task.is_completed }).eq('id', task.id);
+    if (!error) {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, is_completed: !t.is_completed } : t));
+    }
   };
 
   const deleteTask = async (id: number) => {
     if (!supabase) return;
-    await supabase.from('tasks').delete().eq('id', id);
-    setTasks(prev => prev.filter(t => t.id !== id));
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (!error) {
+      setTasks(prev => prev.filter(t => t.id !== id));
+    }
   };
 
   const items = sliderData && sliderData.length > 0 ? sliderData : [
@@ -87,16 +98,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     centerCard(index);
   };
 
-  // Menangani penutupan modal saat klik area luar
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    setShowTasks(false);
-  };
-
-  // Menangani penghentian propagasi klik agar modal tidak tertutup saat diklik isinya
-  const handleModalContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-  };
-
   return (
     <div className="ui-overlay-root">
       {/* Navigation Layer */}
@@ -117,8 +118,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
       {/* Task Modal Layer */}
       {showTasks && (
-        <div className="task-modal-overlay" onClick={handleOverlayClick}>
-          <div className="w-full max-w-[650px] bg-white/[0.04] border border-white/10 rounded-[3rem] p-12 max-h-[85vh] flex flex-col pointer-events-auto shadow-2xl" onClick={handleModalContentClick}>
+        <div className="task-modal-overlay interactable" onClick={() => setShowTasks(false)}>
+          <div className="w-full max-w-[650px] bg-white/[0.04] border border-white/10 rounded-[3rem] p-12 max-h-[85vh] flex flex-col pointer-events-auto shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-10">
               <div>
                 <h2 className="text-3xl font-primary font-bold text-white uppercase tracking-tight flex items-center gap-4">
@@ -136,8 +137,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                 type="text" 
                 placeholder="Entri tugas baru..." 
                 value={newTask} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTask(e.target.value)} 
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && addTask()}
+                onChange={(e) => setNewTask(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && addTask()}
                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-6 focus:outline-none focus:border-[#ff6b35] transition-all text-white font-primary text-lg"
               />
             </div>
@@ -145,7 +146,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
               {tasks.length === 0 ? (
                 <div className="py-20 text-center opacity-20 uppercase text-[10px] tracking-widest font-secondary">Tidak ada tugas aktif</div>
               ) : tasks.map(task => (
-                <div key={task.id} className={`flex items-center gap-6 p-7 mb-4 rounded-[1.8rem] border transition-all ${task.is_completed ? 'opacity-25 border-transparent bg-transparent' : 'bg-white/[0.03] border-white/5 hover:border-white/20'}`}>
+                <div key={task.id} className={`group flex items-center gap-6 p-7 mb-4 rounded-[1.8rem] border transition-all ${task.is_completed ? 'opacity-25 border-transparent bg-transparent' : 'bg-white/[0.03] border-white/5 hover:border-white/20'}`}>
                   <div className={`w-7 h-7 border-2 rounded-xl cursor-pointer flex items-center justify-center transition-all ${task.is_completed ? 'bg-[#ff6b35] border-[#ff6b35]' : 'border-white/20 hover:border-white/50'}`} onClick={() => toggleTask(task)}>
                     {task.is_completed && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
                   </div>
