@@ -83,21 +83,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   const [newTask, setNewTask] = useState("");
   const [newReportTitle, setNewReportTitle] = useState("");
   const [newReportDesc, setNewReportDesc] = useState("");
-
-  // Data Login Inputs
   const [loginEmail, setLoginEmail] = useState("");
   const [loginType, setLoginType] = useState<'BK' | 'ADMIN' | 'POWER' | 'GMAIL'>('BK');
-
-  // Data Staff Inputs
   const [staffNameInput, setStaffNameInput] = useState("");
   const [staffPassport, setStaffPassport] = useState("");
   const [staffRoom, setStaffRoom] = useState("");
-
-  // Shift Kerja Inputs
   const [shiftStaffName, setShiftStaffName] = useState("");
   const [shiftIn, setShiftIn] = useState("");
   const [shiftOut, setShiftOut] = useState("");
-
   const [selectedStaffIzin, setSelectedStaffIzin] = useState("");
   const [now, setNow] = useState(new Date());
 
@@ -117,8 +110,19 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     return () => clearInterval(timer);
   }, []);
 
+  // Helper to save to local storage if supabase is null
+  const saveToLocal = (table: string, data: any) => {
+    if (!supabase) {
+      localStorage.setItem(`nexus_cache_${table}`, JSON.stringify(data));
+    }
+  };
+
   const fetchData = async (table: string, setter: any) => {
-    if (!supabase) return;
+    if (!supabase) {
+      const cached = localStorage.getItem(`nexus_cache_${table}`);
+      if (cached) setter(JSON.parse(cached));
+      return;
+    }
     try {
       const { data } = await supabase.from(table).select('*').order('created_at', { ascending: false });
       if (data) setter(data);
@@ -126,25 +130,24 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
   };
 
   useEffect(() => {
-    if (showTasks) fetchData('tasks', setTasks);
-    if (showReports) fetchData('reports', setReports);
-    if (showDataModal) {
-      fetchData('data_login', setLogins);
-      fetchData('data_staff', setStaffs);
-    }
-    if (showShiftModal) fetchData('shift_kerja', setShifts);
-    if (showIzinModal) {
-      fetchData('shift_kerja', setShifts);
-      fetchData('permissions', setPermissions);
-    }
+    fetchData('tasks', setTasks);
+    fetchData('reports', setReports);
+    fetchData('data_login', setLogins);
+    fetchData('data_staff', setStaffs);
+    fetchData('shift_kerja', setShifts);
+    fetchData('permissions', setPermissions);
   }, [showTasks, showReports, showDataModal, showShiftModal, showIzinModal]);
 
   const addItem = async (table: string, payload: any, setter: any, clearInputs: () => void) => {
-    const tempId = Math.floor(Math.random() * 1000000);
+    const tempId = Date.now();
     const newItem = { ...payload, id: tempId, created_at: new Date().toISOString() };
 
     if (!supabase) {
-      setter((prev: any) => [newItem, ...prev]);
+      setter((prev: any) => {
+        const next = [newItem, ...prev];
+        saveToLocal(table, next);
+        return next;
+      });
       clearInputs();
       return;
     }
@@ -157,13 +160,21 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         clearInputs();
       }
     } catch (err) { 
-      setter((prev: any) => [newItem, ...prev]);
+      setter((prev: any) => {
+        const next = [newItem, ...prev];
+        saveToLocal(table, next);
+        return next;
+      });
       clearInputs();
     }
   };
 
   const deleteItem = async (table: string, id: number, setter: any) => {
-    setter((prev: any) => prev.filter((i: any) => i.id !== id));
+    setter((prev: any) => {
+      const next = prev.filter((i: any) => i.id !== id);
+      saveToLocal(table, next);
+      return next;
+    });
     if (!supabase) return;
     try { await supabase.from(table).delete().eq('id', id); } catch (err) {}
   };
@@ -209,7 +220,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
       penalty: penaltyString 
     };
 
-    setPermissions(prev => prev.map(p => p.id === permissionId ? { ...p, ...updatedData } : p));
+    setterLoop: {
+        setPermissions(prev => {
+            const next = prev.map(p => p.id === permissionId ? { ...p, ...updatedData } : p);
+            saveToLocal('permissions', next);
+            return next;
+        });
+    }
 
     if (supabase) {
       await supabase.from('permissions').update(updatedData).eq('id', permissionId);
@@ -302,14 +319,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                      <button onClick={() => clockIn(activeProtocol.id)} className="w-full bg-[#ff6b35] hover:bg-white text-white hover:text-black py-8 rounded-2xl font-bold uppercase text-[12px] tracking-[0.4em] interactable transition-all">Clock In / Return</button>
                   </div>
                 )}
-                <div className={`p-8 rounded-[2.5rem] border transition-all text-center ${activeProtocol ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-[#ff6b35]/5 border-[#ff6b35]/10 text-white'}`}><div className="text-[9px] uppercase tracking-[0.4em] mb-3 opacity-50">System Status</div><div className="font-primary text-xl font-bold uppercase tracking-widest">{activeProtocol ? 'LOCKED' : 'READY'}</div></div>
               </div>
               <div className="lg:col-span-8 flex flex-col overflow-hidden bg-white/[0.01] rounded-[2.5rem] border border-white/5 p-4">
                 <div className="flex-1 overflow-y-auto task-list p-4 space-y-4">
                   {permissions.map(p => (
                     <div key={p.id} className={`p-8 rounded-[2.5rem] border transition-all ${p.status === 'ACTIVE' ? 'bg-[#ff6b35]/10 border-[#ff6b35]/30' : 'bg-white/[0.02] border-white/5 opacity-40'}`}>
                       <div className="flex justify-between items-center">
-                        <div><div className="flex items-center gap-3 mb-4"><div className={`text-[8px] px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em] ${p.type === 'KELUAR' ? 'bg-blue-500/20 text-blue-400' : 'bg-[#ff6b35]/20 text-[#ff6b35]'}`}>{p.type}</div>{p.penalty && <div className="text-[8px] text-red-400">{p.penalty}</div>}</div><h4 className="text-3xl font-primary font-bold text-white">{p.staff_name}</h4></div>
+                        <div><div className="flex items-center gap-3 mb-4"><div className={`text-[8px] px-3 py-1 rounded-full font-bold uppercase tracking-[0.2em] ${p.type === 'KELUAR' ? 'bg-blue-500/20 text-blue-400' : 'bg-[#ff6b35]/20 text-[#ff6b35]'}`}>{p.type}</div>{p.penalty && <div className="text-[8px] text-red-400 font-bold">{p.penalty}</div>}</div><h4 className="text-3xl font-primary font-bold text-white">{p.staff_name}</h4></div>
                         {p.status === 'ACTIVE' && <div className="text-4xl font-mono font-bold text-white tabular-nums">{getTimerString(p.end_time)}</div>}
                       </div>
                     </div>
@@ -327,9 +343,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
           <div className="w-[90vw] max-w-[650px] bg-black/80 border border-white/10 rounded-[3rem] p-10 max-h-[85vh] flex flex-col shadow-2xl interactable backdrop-blur-3xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start mb-8">
               <h2 className="text-3xl font-primary font-bold text-white uppercase tracking-tight">Tugas Today</h2>
-              <button onClick={() => setShowTasks(false)} className="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all interactable">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
+              <button onClick={() => setShowTasks(false)} className="bg-white/5 hover:bg-white/10 p-3 rounded-full transition-all interactable"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
             </div>
             <div className="flex gap-4 mb-8">
               <input type="text" placeholder="Entri tugas baru..." value={newTask} onChange={(e) => setNewTask(e.target.value)} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-5 text-white font-primary text-lg interactable focus:border-[#ff6b35] outline-none" />
@@ -338,7 +352,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
             <div className="task-list flex-1 overflow-y-auto pr-2 space-y-4">
               {tasks.map(task => (
                 <div key={task.id} className="flex items-center gap-6 p-6 rounded-[1.5rem] border border-white/5 bg-white/[0.03]">
-                  <div className={`w-7 h-7 border-2 rounded-lg cursor-pointer flex items-center justify-center transition-all interactable ${task.is_completed ? 'bg-[#ff6b35] border-[#ff6b35]' : 'border-white/20'}`} onClick={async () => { const newState = !task.is_completed; setTasks(prev => prev.map(t => t.id === task.id ? { ...t, is_completed: newState } : t)); if (supabase) await supabase.from('tasks').update({ is_completed: newState }).eq('id', task.id); }}>{task.is_completed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}</div>
+                  <div className={`w-7 h-7 border-2 rounded-lg cursor-pointer flex items-center justify-center transition-all interactable ${task.is_completed ? 'bg-[#ff6b35] border-[#ff6b35]' : 'border-white/20'}`} onClick={async () => { const newState = !task.is_completed; setTasks(prev => { const next = prev.map(t => t.id === task.id ? { ...t, is_completed: newState } : t); saveToLocal('tasks', next); return next; }); if (supabase) await supabase.from('tasks').update({ is_completed: newState }).eq('id', task.id); }}>{task.is_completed && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}</div>
                   <div className={`flex-1 font-primary text-white text-lg ${task.is_completed ? 'line-through opacity-30' : ''}`}>{task.title}</div>
                   <button onClick={() => deleteItem('tasks', task.id, setTasks)} className="p-2 hover:bg-red-500/10 rounded-lg interactable"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" strokeWidth="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </div>
