@@ -1,15 +1,25 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Mengakses environment variables secara aman untuk lingkungan browser/Vercel
+/**
+ * Pendeteksian environment variable yang lebih tangguh untuk Vite & Vercel.
+ * Vite menggunakan import.meta.env secara default.
+ */
 const getEnv = (key: string): string | undefined => {
   try {
-    // @ts-ignore
-    return (typeof process !== 'undefined' && process.env ? process.env[key] : undefined) || 
-           // @ts-ignore
-           (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env[key] : undefined);
+    // @ts-ignore - Mencoba standar Vite/ESM
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key];
+    }
+    // @ts-ignore - Fallback ke standar Node (jika ada)
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      // @ts-ignore
+      return process.env[key];
+    }
   } catch (e) {
-    return undefined;
+    // Diamkan error jika akses env gagal
   }
+  return undefined;
 };
 
 const supabaseUrl = getEnv('SUPABASE_URL');
@@ -21,5 +31,5 @@ export const supabase: SupabaseClient | null =
     : null;
 
 if (!supabase) {
-  console.warn("Supabase credentials missing. Pastikan variabel SUPABASE_URL dan SUPABASE_ANON_KEY sudah diatur di Vercel Environment Variables.");
+  console.warn("Supabase credentials tidak ditemukan. Aplikasi akan menggunakan data default.");
 }
