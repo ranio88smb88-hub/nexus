@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "PPSupplyMono";
+  src: url("https://assets.codepen.io/7558/PPSupplyMono-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-primary: "PP Neue Montreal", sans-serif;
+  --font-secondary: "PPSupplyMono", monospace;
+  --gap: 1.5rem;
+  --speed: 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+  --closed: 6rem;
+  --open: 32rem;
+  --accent: #ff6b35;
+}
+
+body {
+  background-color: #07090d;
+  color: #ffffff;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-secondary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-primary { font-family: var(--font-primary); }
+.font-secondary { font-family: var(--font-secondary); }
+
+/* Tweakpane Container - Highest Priority */
+#tweakpane-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  pointer-events: auto !important;
+}
+
+/* UI Root - Non-blocking Layer */
+.ui-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Allow interaction for children */
+.interactable {
+  pointer-events: auto !important;
+}
+
+/* Slider Component */
+.slider-section {
+  position: absolute;
+  bottom: 8%;
+  left: 0;
+  width: 100%;
+  padding: 0 4rem;
+  z-index: 150;
+}
+
+.slider-container {
+  overflow: visible;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.slider-track {
+  display: flex;
+  gap: var(--gap);
+  align-items: flex-start;
+  transition: transform var(--speed);
+}
+
+/* Project Card Styling */
+.project-card {
+  position: relative;
+  flex-shrink: 0;
+  height: 30rem;
+  border-radius: 2.5rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: flex-basis var(--speed), transform var(--speed), box-shadow var(--speed), border-color 0.4s;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+.project-card:hover {
+  transform: translateY(-10px);
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.project-card[data-active="true"] {
+  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.9), 0 0 50px -10px rgba(255, 107, 53, 0.2);
+  border-color: rgba(255, 107, 53, 0.3);
+}
+
+.writing-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* Task Modal */
+.task-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.4s ease;
+}
+
+.task-list::-webkit-scrollbar { width: 4px; }
+.task-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+
+@media (max-width: 768px) {
+  .slider-section {
+    bottom: 4%;
+    padding: 0 1rem;
+  }
+  :root {
+    --open: 85vw;
+    --closed: 4rem;
+  }
+}
