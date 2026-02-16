@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { Settings } from '../types';
 import { supabase } from '../lib/supabase';
@@ -105,27 +106,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
     centerCard(index);
   };
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setNewTask(e.target.value);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      addTask();
-    }
-  };
-
-  const handleModalOverlayClick = (e: MouseEvent<HTMLDivElement>) => {
-    setShowTasks(false);
-  };
-
-  const handleModalContentClick = (e: MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-  };
-
   return (
     <div className="ui-overlay-root">
-      {/* Navigation Layer */}
+      {/* Navigation Layer - Harus pointer-events-auto */}
       <nav className="fixed top-0 left-0 w-full p-12 flex justify-start items-center z-[110] pointer-events-auto">
         <ul className="flex gap-12 list-none">
           {navs.map((item, i) => (
@@ -143,10 +126,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
 
       {/* Task Modal Layer */}
       {showTasks && (
-        <div className="task-modal-overlay" onClick={handleModalOverlayClick}>
+        <div className="task-modal-overlay" onClick={() => setShowTasks(false)}>
           <div 
-            className="w-full max-w-[650px] bg-white/[0.04] border border-white/10 rounded-[3rem] p-12 max-h-[85vh] flex flex-col shadow-2xl interactable" 
-            onClick={handleModalContentClick}
+            className="w-full max-w-[650px] bg-black/60 border border-white/10 rounded-[3rem] p-12 max-h-[85vh] flex flex-col shadow-2xl interactable" 
+            onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-10">
               <div>
@@ -166,8 +149,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
                 type="text" 
                 placeholder="Entri tugas baru..." 
                 value={newTask} 
-                onChange={handleInputChange} 
-                onKeyDown={handleKeyDown}
+                onChange={(e) => setNewTask(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && addTask()}
                 className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-6 focus:outline-none focus:border-[#ff6b35] transition-all text-white font-primary text-lg interactable"
               />
             </div>
@@ -201,7 +184,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ stats, config, navData, sliderDat
         </div>
       )}
 
-      {/* Slider Section Layer */}
+      {/* Slider Section */}
       <section className="slider-section">
         <div className="slider-container" ref={containerRef}>
           <div className="slider-track" ref={trackRef}>
