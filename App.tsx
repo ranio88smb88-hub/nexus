@@ -15,66 +15,58 @@ const App: React.FC = () => {
 
   useEffect(() => {
     async function fetchData() {
-      // If Supabase isn't configured, use default data immediately
+      const defaultNav = [
+        { label: 'tugas today' },
+        { label: 'reportan' },
+        { label: 'data' },
+        { label: 'shift kerja' },
+        { label: 'izin keluar' }
+      ];
+      const defaultSlider = SLIDER_ITEMS_DEFAULT.map(item => ({
+        title: item.title,
+        desc: item.desc,
+        bg: item.bg
+      }));
+
       if (!supabase) {
-        setNavItems([
-          { label: 'tugas today' },
-          { label: 'reportan' },
-          { label: 'data' },
-          { label: 'shift kerja' },
-          { label: 'izin keluar' }
-        ]);
-        setSliderItems(SLIDER_ITEMS_DEFAULT.map(item => ({
-          title: item.title,
-          desc: item.desc,
-          bg: item.bg
-        })));
+        setNavItems(defaultNav);
+        setSliderItems(defaultSlider);
         setLoading(false);
         return;
       }
 
       try {
-        const [navResponse, sliderResponse] = await Promise.all([
-          supabase
-            .from('navbar_items')
-            .select('label')
-            .order('order_index', { ascending: true }),
-          supabase
-            .from('slider_items')
-            .select('title, description, bg_image')
-            .order('order_index', { ascending: true })
-        ]);
-        
-        // Handle Navbar Items
-        if (navResponse.data && navResponse.data.length > 0) {
-          setNavItems(navResponse.data);
-        } else {
-          setNavItems([
-            { label: 'tugas today' },
-            { label: 'reportan' },
-            { label: 'data' },
-            { label: 'shift kerja' },
-            { label: 'izin keluar' }
+        const fetchUI = async () => {
+          const [navResponse, sliderResponse] = await Promise.all([
+            supabase.from('navbar_items').select('label').order('order_index', { ascending: true }),
+            supabase.from('slider_items').select('title, description, bg_image').order('order_index', { ascending: true })
           ]);
-        }
-        
-        // Handle Slider Items
-        if (sliderResponse.data && sliderResponse.data.length > 0) {
-          setSliderItems(sliderResponse.data.map(item => ({
-            title: item.title,
-            desc: item.description,
-            bg: item.bg_image
-          })));
-        } else {
-          setSliderItems(SLIDER_ITEMS_DEFAULT.map(item => ({
-            title: item.title,
-            desc: item.desc,
-            bg: item.bg
-          })));
-        }
+          
+          if (navResponse.data && navResponse.data.length > 0) setNavItems(navResponse.data);
+          else setNavItems(defaultNav);
+
+          if (sliderResponse.data && sliderResponse.data.length > 0) {
+            setSliderItems(sliderResponse.data.map(item => ({
+              title: item.title,
+              desc: item.description,
+              bg: item.bg_image
+            })));
+          } else setSliderItems(defaultSlider);
+        };
+
+        await fetchUI();
+
+        // Realtime sync for UI config
+        const navChannel = supabase.channel('ui-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'navbar_items' }, fetchUI)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'slider_items' }, fetchUI)
+          .subscribe();
+
+        setLoading(false);
       } catch (error) {
-        console.error('Error fetching data from Supabase:', error);
-      } finally {
+        console.error('Sync Error:', error);
+        setNavItems(defaultNav);
+        setSliderItems(defaultSlider);
         setLoading(false);
       }
     }
