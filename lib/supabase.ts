@@ -1,13 +1,12 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Menggunakan pengaman untuk akses process.env di lingkungan browser
-const getEnv = (key: string) => {
+// Mengakses environment variables secara aman untuk lingkungan browser/Vercel
+const getEnv = (key: string): string | undefined => {
   try {
     // @ts-ignore
     return (typeof process !== 'undefined' && process.env ? process.env[key] : undefined) || 
            // @ts-ignore
-           (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env[`VITE_${key}`] : undefined);
+           (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env[key] : undefined);
   } catch (e) {
     return undefined;
   }
