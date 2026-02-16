@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -37,26 +38,24 @@ body {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 9999;
+  z-index: 10000; /* Lebih tinggi dari modal */
   pointer-events: auto !important;
 }
 
-/* UI Root - Non-blocking Layer */
+/* UI Root Overlay - Non-blocking Layer */
 .ui-overlay-root {
   position: fixed;
   inset: 0;
   z-index: 100;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
+  pointer-events: none; /* Penting: agar background tetap bisa mendeteksi mouse */
 }
 
-/* Allow interaction for children */
+/* Global class for clickable elements inside pointer-events: none parents */
 .interactable {
   pointer-events: auto !important;
 }
 
-/* Slider Component */
+/* Slider Section */
 .slider-section {
   position: absolute;
   bottom: 8%;
@@ -64,12 +63,14 @@ body {
   width: 100%;
   padding: 0 4rem;
   z-index: 150;
+  pointer-events: none;
 }
 
 .slider-container {
   overflow: visible;
   display: flex;
   justify-content: flex-start;
+  pointer-events: auto; /* Mengaktifkan kembali hover di area slider */
 }
 
 .slider-track {
@@ -97,7 +98,6 @@ body {
 .project-card:hover {
   transform: translateY(-10px);
   border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.05);
 }
 
 .project-card[data-active="true"] {
@@ -110,7 +110,7 @@ body {
   text-orientation: mixed;
 }
 
-/* Task Modal */
+/* Task Modal Overlay */
 .task-modal-overlay {
   position: fixed;
   inset: 0;
@@ -121,6 +121,7 @@ body {
   align-items: center;
   justify-content: center;
   transition: opacity 0.4s ease;
+  pointer-events: auto;
 }
 
 .task-list::-webkit-scrollbar { width: 4px; }
