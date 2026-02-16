@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -32,26 +33,31 @@ body {
 .font-primary { font-family: var(--font-primary); }
 .font-secondary { font-family: var(--font-secondary); }
 
-/* Tweakpane Container - Highest Priority */
+/* Tweakpane Container */
 #tweakpane-container {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 9999;
+  z-index: 10000;
   pointer-events: auto !important;
 }
 
-/* UI Root Overlay - Non-blocking Layer */
+/* UI Root Overlay - Pastikan ini tidak memblokir klik */
 .ui-overlay-root {
   position: fixed;
   inset: 0;
   z-index: 100;
-  pointer-events: none;
+  pointer-events: none; /* Membiarkan mouse menembus ke background */
 }
 
-/* Re-enable pointer events for clickable HUD elements */
+/* Elemen yang HARUS bisa diklik */
 .interactable {
   pointer-events: auto !important;
+}
+
+/* Navigasi */
+nav {
+  pointer-events: auto !important; /* WAJIB Agar navigasi bisa diklik */
 }
 
 /* Slider Section */
@@ -69,7 +75,7 @@ body {
   overflow: visible;
   display: flex;
   justify-content: flex-start;
-  pointer-events: auto;
+  pointer-events: auto; /* Aktifkan klik di area slider */
 }
 
 .slider-track {
@@ -79,7 +85,7 @@ body {
   transition: transform var(--speed);
 }
 
-/* Project Card Styling */
+/* Card Project */
 .project-card {
   position: relative;
   flex-shrink: 0;
@@ -109,7 +115,7 @@ body {
   text-orientation: mixed;
 }
 
-/* Task Modal Overlay */
+/* Modal Tugas */
 .task-modal-overlay {
   position: fixed;
   inset: 0;
@@ -119,7 +125,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.4s ease;
   pointer-events: auto;
 }
 
