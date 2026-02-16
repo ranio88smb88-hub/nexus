@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -38,7 +37,7 @@ body {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 10000; /* Lebih tinggi dari modal */
+  z-index: 9999;
   pointer-events: auto !important;
 }
 
@@ -47,10 +46,10 @@ body {
   position: fixed;
   inset: 0;
   z-index: 100;
-  pointer-events: none; /* Penting: agar background tetap bisa mendeteksi mouse */
+  pointer-events: none; /* Mouse events pass through to canvas */
 }
 
-/* Global class for clickable elements inside pointer-events: none parents */
+/* Re-enable pointer events for clickable HUD elements */
 .interactable {
   pointer-events: auto !important;
 }
@@ -63,14 +62,14 @@ body {
   width: 100%;
   padding: 0 4rem;
   z-index: 150;
-  pointer-events: none;
+  pointer-events: none; /* Let clicks pass through empty space */
 }
 
 .slider-container {
   overflow: visible;
   display: flex;
   justify-content: flex-start;
-  pointer-events: auto; /* Mengaktifkan kembali hover di area slider */
+  pointer-events: auto; /* Active area for the slider */
 }
 
 .slider-track {
@@ -121,7 +120,7 @@ body {
   align-items: center;
   justify-content: center;
   transition: opacity 0.4s ease;
-  pointer-events: auto;
+  pointer-events: auto; /* Catch all clicks while modal is open */
 }
 
 .task-list::-webkit-scrollbar { width: 4px; }
